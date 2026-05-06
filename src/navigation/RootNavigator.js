@@ -3,6 +3,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
+import AddHabitScreen from '../screens/AddHabitScreen';
+import PremiumScreen from '../screens/PremiumScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 import { useTheme } from '../theme';
 import { useI18n } from '../i18n';
@@ -73,12 +75,12 @@ export default function RootNavigator() {
         <Stack.Screen name="Tabs" component={Tabs} />
         <Stack.Screen
           name="AddHabit"
-          component={() => <PlaceholderScreen title="Добавить привычку" />}
+          component={AddHabitScreen}
           options={{ presentation: 'modal' }}
         />
         <Stack.Screen
           name="Premium"
-          component={() => <PlaceholderScreen title="Premium" />}
+          component={PremiumScreen}
           options={{ presentation: 'modal' }}
         />
       </Stack.Navigator>
