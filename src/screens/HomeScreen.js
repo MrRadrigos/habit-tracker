@@ -119,29 +119,29 @@ export default function HomeScreen({ navigation }) {
     setCompletions(updated);
   };
 
-  const handleLongPress = (habit) => {
-    Alert.alert(habit.name, t.home.actionsTitle || '', [
+  const handleEdit = (habit) => {
+    navigation.navigate('AddHabit', { habit });
+  };
+
+  const handleDelete = (habit) => {
+    Alert.alert(t.add.confirmDeleteTitle, t.add.confirmDeleteText, [
       { text: t.add.cancel, style: 'cancel' },
-      {
-        text: t.add.edit,
-        onPress: () => navigation.navigate('AddHabit', { habit }),
-      },
       {
         text: t.add.delete,
         style: 'destructive',
-        onPress: () =>
-          Alert.alert(t.add.confirmDeleteTitle, t.add.confirmDeleteText, [
-            { text: t.add.cancel, style: 'cancel' },
-            {
-              text: t.add.delete,
-              style: 'destructive',
-              onPress: async () => {
-                const next = await deleteHabit(habit.id);
-                setHabits(next);
-              },
-            },
-          ]),
+        onPress: async () => {
+          const next = await deleteHabit(habit.id);
+          setHabits(next);
+        },
       },
+    ]);
+  };
+
+  const handleLongPress = (habit) => {
+    Alert.alert(habit.name, t.add.actionsTitle, [
+      { text: t.add.cancel, style: 'cancel' },
+      { text: t.add.edit, onPress: () => handleEdit(habit) },
+      { text: t.add.delete, style: 'destructive', onPress: () => handleDelete(habit) },
     ]);
   };
 
@@ -225,6 +225,8 @@ export default function HomeScreen({ navigation }) {
               streak={calculateStreak(habit, completions[habit.id] || [])}
               onToggle={() => handleToggle(habit.id)}
               onLongPress={() => handleLongPress(habit)}
+              onEdit={() => handleEdit(habit)}
+              onDelete={() => handleDelete(habit)}
             />
           ))
         )}

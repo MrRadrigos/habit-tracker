@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useTheme } from '../theme';
 import { useI18n } from '../i18n';
 import { dayOfWeekIndex, isScheduledToday, lastNDates, todayKey } from '../storage/habits';
@@ -108,57 +109,167 @@ function WeekStrip({ habit, doneSet, color }) {
   );
 }
 
-export default function HabitCard({ habit, completionsForHabit, streak, onToggle, onLongPress }) {
+export default function HabitCard({
+  habit,
+  completionsForHabit,
+  streak,
+  onToggle,
+  onLongPress,
+  onEdit,
+  onDelete,
+}) {
   const { theme } = useTheme();
   const { t } = useI18n();
+  const swipeRef = useRef(null);
+  const pressScale = useRef(new Animated.Value(1)).current;
+
   const doneSet = new Set(completionsForHabit);
   const checked = doneSet.has(todayKey());
   const color = habit.color;
 
+  const animatePressIn = () => {
+    Animated.spring(pressScale, {
+      toValue: 0.97,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const animatePressOut = () => {
+    Animated.spring(pressScale, {
+      toValue: 1,
+      friction: 6,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleLongPress = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
+    Animated.sequence([
+      Animated.timing(pressScale, { toValue: 0.94, duration: 90, useNativeDriver: true }),
+      Animated.spring(pressScale, { toValue: 1, friction: 5, useNativeDriver: true }),
+    ]).start();
+    onLongPress?.();
+  };
+
+  const closeAndRun = (fn) => {
+    swipeRef.current?.close?.();
+    setTimeout(() => fn?.(), 80);
+  };
+
+  const renderRightActions = () => (
+    <View style={styles.swipeActions}>
+      <Pressable
+        onPress={() => closeAndRun(onEdit)}
+        style={({ pressed }) => [
+          styles.swipeAction,
+          { backgroundColor: theme.warning, opacity: pressed ? 0.85 : 1 },
+        ]}
+      >
+        <Text style={styles.swipeIcon}>✏️</Text>
+        <Text style={styles.swipeText}>{t.add.edit}</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => closeAndRun(onDelete)}
+        style={({ pressed }) => [
+          styles.swipeAction,
+          { backgroundColor: theme.danger, opacity: pressed ? 0.85 : 1 },
+        ]}
+      >
+        <Text style={styles.swipeIcon}>🗑️</Text>
+        <Text style={styles.swipeText}>{t.add.delete}</Text>
+      </Pressable>
+    </View>
+  );
+
   return (
-    <Pressable
-      onLongPress={onLongPress}
-      delayLongPress={350}
-      style={({ pressed }) => [
-        styles.card,
-        {
-          backgroundColor: theme.card,
-          shadowColor: theme.shadow,
-          borderColor: theme.border,
-          opacity: pressed ? 0.95 : 1,
-        },
-      ]}
-    >
-      <View style={styles.row}>
-        <View style={[styles.iconWrap, { backgroundColor: hexWithAlpha(color, 0.18) }]}>
-          <Text style={styles.icon}>{habit.icon}</Text>
-        </View>
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
-            {habit.name}
-          </Text>
-          <View style={styles.streakRow}>
-            <Text style={styles.streakIcon}>🔥</Text>
-            <Text style={[styles.streakNum, { color: theme.textMuted }]}>
-              {streak} {t.home.streakDays}
-            </Text>
-            {habit.reminder ? (
-              <Text style={[styles.reminder, { color: theme.textDim }]}>· {habit.reminder}</Text>
-            ) : null}
-          </View>
-        </View>
-        <Checkbox checked={checked} color={color} onPress={onToggle} />
-      </View>
-      <WeekStrip habit={habit} doneSet={doneSet} color={color} />
-    </Pressable>
+    <View style={styles.cardOuter}>
+      <ReanimatedSwipeable
+        ref={swipeRef}
+        renderRightActions={renderRightActions}
+        rightThreshold={40}
+        overshootRight={false}
+        friction={2}
+        containerStyle={styles.swipeContainer}
+      >
+        <Animated.View style={{ transform: [{ scale: pressScale }] }}>
+          <Pressable
+            onLongPress={handleLongPress}
+            delayLongPress={350}
+            onPressIn={animatePressIn}
+            onPressOut={animatePressOut}
+            style={[
+              styles.card,
+              {
+                backgroundColor: theme.card,
+                shadowColor: theme.shadow,
+                borderColor: theme.border,
+              },
+            ]}
+          >
+            <View style={styles.row}>
+              <View style={[styles.iconWrap, { backgroundColor: hexWithAlpha(color, 0.18) }]}>
+                <Text style={styles.icon}>{habit.icon}</Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
+                  {habit.name}
+                </Text>
+                <View style={styles.streakRow}>
+                  <Text style={styles.streakIcon}>🔥</Text>
+                  <Text style={[styles.streakNum, { color: theme.textMuted }]}>
+                    {streak} {t.home.streakDays}
+                  </Text>
+                  {habit.reminder ? (
+                    <Text style={[styles.reminder, { color: theme.textDim }]}>· {habit.reminder}</Text>
+                  ) : null}
+                </View>
+              </View>
+              <Checkbox checked={checked} color={color} onPress={onToggle} />
+            </View>
+            <WeekStrip habit={habit} doneSet={doneSet} color={color} />
+          </Pressable>
+        </Animated.View>
+      </ReanimatedSwipeable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  cardOuter: {
+    marginBottom: 14,
+    borderRadius: 22,
+  },
+  swipeContainer: {
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  swipeActions: {
+    flexDirection: 'row',
+    width: 168,
+  },
+  swipeAction: {
+    width: 80,
+    marginLeft: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 16,
+  },
+  swipeIcon: {
+    fontSize: 20,
+  },
+  swipeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 4,
+    letterSpacing: 0.2,
+  },
   card: {
     borderRadius: 22,
     padding: 16,
-    marginBottom: 14,
     borderWidth: StyleSheet.hairlineWidth,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.22,

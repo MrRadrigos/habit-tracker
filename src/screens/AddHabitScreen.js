@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   customIconInput: {
-    textAlign: 'center',
+    paddingHorizontal: 14,
   },
   customAddBtn: {
     marginLeft: 8,
