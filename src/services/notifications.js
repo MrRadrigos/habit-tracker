@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { getHabits, deleteHabit as removeHabit } from '../storage/habits';
+import { getHabits } from '../storage/habits';
 
 let configured = false;
 
@@ -8,7 +8,8 @@ function configure() {
   if (configured) return;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldPlaySound: false,
       shouldSetBadge: false,
     }),
@@ -26,11 +27,17 @@ function configure() {
 export async function ensurePermission() {
   configure();
   const settings = await Notifications.getPermissionsAsync();
-  if (settings.granted || settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL) {
+  if (
+    settings.granted ||
+    settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
+  ) {
     return true;
   }
   const req = await Notifications.requestPermissionsAsync();
-  return req.granted || req.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
+  return (
+    req.granted ||
+    req.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
+  );
 }
 
 // our weekday: 0=Mon ... 6=Sun
@@ -47,26 +54,30 @@ function parseTime(t) {
 async function scheduleForHabit(habit) {
   if (!habit.reminder) return;
   const { hour, minute } = parseTime(habit.reminder);
-  const body =
-    habit.icon ? `${habit.icon}  ${habit.name}` : habit.name;
+  const title = habit.icon ? `${habit.icon}  ${habit.name}` : habit.name;
 
   if (habit.frequency?.type === 'weekly') {
     for (const d of habit.frequency.days || []) {
       await Notifications.scheduleNotificationAsync({
-        content: { title: body, sound: false },
+        content: { title, sound: false },
         trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
           weekday: ourDayToExpoWeekday(d),
           hour,
           minute,
-          repeats: true,
           channelId: 'habits',
         },
       }).catch(() => {});
     }
   } else {
     await Notifications.scheduleNotificationAsync({
-      content: { title: body, sound: false },
-      trigger: { hour, minute, repeats: true, channelId: 'habits' },
+      content: { title, sound: false },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+        channelId: 'habits',
+      },
     }).catch(() => {});
   }
 }
@@ -88,6 +99,3 @@ export async function syncNotifications(habits) {
 export async function cancelAll() {
   await Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
 }
-
-// re-export for convenience
-export { removeHabit };
