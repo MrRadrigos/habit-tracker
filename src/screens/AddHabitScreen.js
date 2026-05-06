@@ -10,13 +10,24 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { habitColors, habitIcons, useTheme } from '../theme';
 import { useI18n } from '../i18n';
 import { addHabit, getHabits } from '../storage/habits';
+import { syncNotifications } from '../services/notifications';
 
 const FREE_LIMIT = 3;
 
-const TIME_PRESETS = ['07:00', '09:00', '12:00', '18:00', '21:00'];
+function timeToDate(t) {
+  const [h, m] = (t || '09:00').split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+function dateToTime(d) {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 
 export default function AddHabitScreen({ navigation }) {
   const { theme } = useTheme();
@@ -26,6 +37,7 @@ export default function AddHabitScreen({ navigation }) {
   const [icon, setIcon] = useState(habitIcons[0]);
   const [color, setColor] = useState(habitColors[0]);
   const [reminder, setReminder] = useState(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [freqType, setFreqType] = useState('daily');
   const [weekdays, setWeekdays] = useState([0, 1, 2, 3, 4, 5, 6]);
   const [saving, setSaving] = useState(false);
@@ -59,9 +71,16 @@ export default function AddHabitScreen({ navigation }) {
           : { type: 'weekly', days: weekdays },
       createdAt: Date.now(),
     };
-    await addHabit(habit);
+    const next = await addHabit(habit);
+    await syncNotifications(next).catch(() => {});
     setSaving(false);
     navigation.goBack();
+  };
+
+  const handleTimeChange = (event, date) => {
+    if (Platform.OS !== 'ios') setPickerOpen(false);
+    if (event?.type === 'dismissed') return;
+    if (date) setReminder(dateToTime(date));
   };
 
   return (
@@ -161,17 +180,35 @@ export default function AddHabitScreen({ navigation }) {
                 theme={theme}
                 color={color}
               />
-              {TIME_PRESETS.map((time) => (
-                <Chip
-                  key={time}
-                  label={time}
-                  active={reminder === time}
-                  onPress={() => setReminder(time)}
-                  theme={theme}
-                  color={color}
-                />
-              ))}
+              <Chip
+                label={reminder ? `🕘 ${reminder}` : t.add.pickTime}
+                active={reminder !== null}
+                onPress={() => setPickerOpen(true)}
+                theme={theme}
+                color={color}
+              />
             </View>
+            {pickerOpen ? (
+              <DateTimePicker
+                value={timeToDate(reminder)}
+                mode="time"
+                is24Hour
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleTimeChange}
+                themeVariant={theme.name}
+              />
+            ) : null}
+            {Platform.OS === 'ios' && pickerOpen ? (
+              <Pressable
+                onPress={() => setPickerOpen(false)}
+                style={({ pressed }) => [
+                  styles.pickerDone,
+                  { backgroundColor: color, opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <Text style={styles.pickerDoneText}>{t.add.done}</Text>
+              </Pressable>
+            ) : null}
           </Section>
 
           <Section label={t.add.frequency} theme={theme}>
@@ -406,4 +443,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   weekBtnText: { fontSize: 12, fontWeight: '700' },
+  pickerDone: {
+    marginTop: 10,
+    alignSelf: 'flex-end',
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+  pickerDoneText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 });

@@ -32,6 +32,9 @@
           "color": "#7C5CFF"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "insightsUrl": ""
+    }
   }
 }

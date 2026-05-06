@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { useI18n } from '../i18n';
+import { useProfile } from '../storage/profile';
 import {
   calculateStreak,
   getCompletions,
@@ -24,6 +25,7 @@ import HabitCard from '../components/HabitCard';
 import MetricCard from '../components/MetricCard';
 import InsightCard from '../components/InsightCard';
 import { getInsight } from '../services/insights';
+import { syncNotifications } from '../services/notifications';
 
 function getGreeting(t) {
   const h = new Date().getHours();
@@ -45,9 +47,9 @@ function formatDate(date, lang) {
 export default function HomeScreen({ navigation }) {
   const { theme } = useTheme();
   const { t, lang } = useI18n();
+  const { name: userName } = useProfile();
   const [habits, setHabits] = useState([]);
   const [completions, setCompletions] = useState({});
-  const [userName, setUserName] = useState('');
   const [insight, setInsight] = useState('');
   const [insightLoading, setInsightLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -63,6 +65,10 @@ export default function HomeScreen({ navigation }) {
       load();
     }, [load])
   );
+
+  useEffect(() => {
+    syncNotifications(habits).catch(() => {});
+  }, [habits]);
 
   useEffect(() => {
     let cancelled = false;

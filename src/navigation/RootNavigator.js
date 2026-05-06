@@ -5,7 +5,8 @@ import { Text } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
 import AddHabitScreen from '../screens/AddHabitScreen';
 import PremiumScreen from '../screens/PremiumScreen';
-import PlaceholderScreen from '../screens/PlaceholderScreen';
+import StatsScreen from '../screens/StatsScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import { useTheme } from '../theme';
 import { useI18n } from '../i18n';
 
@@ -44,12 +45,12 @@ function Tabs() {
       />
       <Tab.Screen
         name="Stats"
-        component={() => <PlaceholderScreen title={t.tabs.stats} />}
+        component={StatsScreen}
         options={{ tabBarLabel: t.tabs.stats, tabBarIcon: tabIcon('📊') }}
       />
       <Tab.Screen
         name="Settings"
-        component={() => <PlaceholderScreen title={t.tabs.settings} />}
+        component={SettingsScreen}
         options={{ tabBarLabel: t.tabs.settings, tabBarIcon: tabIcon('⚙️') }}
       />
     </Tab.Navigator>

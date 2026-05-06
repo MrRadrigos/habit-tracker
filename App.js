@@ -3,6 +3,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/theme';
 import { I18nProvider } from './src/i18n';
+import { ProfileProvider } from './src/storage/profile';
 import RootNavigator from './src/navigation/RootNavigator';
 
 function ThemedStatusBar() {
@@ -16,8 +17,10 @@ export default function App() {
       <SafeAreaProvider>
         <ThemeProvider>
           <I18nProvider>
-            <ThemedStatusBar />
-            <RootNavigator />
+            <ProfileProvider>
+              <ThemedStatusBar />
+              <RootNavigator />
+            </ProfileProvider>
           </I18nProvider>
         </ThemeProvider>
       </SafeAreaProvider>

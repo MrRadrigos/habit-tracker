@@ -1,8 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { calculateStreak, isScheduledToday, lastNDates, todayKey } from '../storage/habits';
 import { getTranslations } from '../i18n';
 
 const CACHE_KEY = '@cache:insight';
+
+function getInsightsUrl() {
+  const fromExpo = Constants?.expoConfig?.extra?.insightsUrl;
+  const fromManifest = Constants?.manifest?.extra?.insightsUrl;
+  const fromEnv =
+    typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_INSIGHTS_URL : null;
+  return fromExpo || fromManifest || fromEnv || '';
+}
 
 function buildSummary(habits, completions) {
   const week = lastNDates(7);
@@ -35,7 +44,19 @@ function fallbackInsight(summary, lang) {
   return `Самая сильная привычка недели — «${best.name}» (${best.weekRate}%). Удержи темп и подтяни остальные хотя бы на одну отметку сегодня.`;
 }
 
-export async function getInsight({ habits, completions, lang, apiKey }) {
+async function callProxy({ summary, lang, url }) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ summary, lang }),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const data = await response.json();
+  if (!data?.text) throw new Error('empty');
+  return data.text.trim();
+}
+
+export async function getInsight({ habits, completions, lang }) {
   const today = todayKey();
   try {
     const raw = await AsyncStorage.getItem(CACHE_KEY);
@@ -46,11 +67,12 @@ export async function getInsight({ habits, completions, lang, apiKey }) {
   } catch {}
 
   const summary = buildSummary(habits, completions);
+  const url = getInsightsUrl();
   let text;
 
-  if (apiKey && summary.length > 0) {
+  if (url && summary.length > 0) {
     try {
-      text = await callAnthropic({ summary, lang, apiKey });
+      text = await callProxy({ summary, lang, url });
     } catch {
       text = fallbackInsight(summary, lang);
     }
@@ -59,42 +81,6 @@ export async function getInsight({ habits, completions, lang, apiKey }) {
   }
 
   await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ day: today, lang, text }));
-  return text;
-}
-
-async function callAnthropic({ summary, lang, apiKey }) {
-  const systemRu =
-    'Ты доброжелательный коуч по привычкам. Дай один краткий персональный инсайт (2–3 предложения) на основе данных пользователя. Без списков, без markdown. Тон — тёплый и мотивирующий.';
-  const systemEn =
-    'You are a supportive habit coach. Give one short personal insight (2–3 sentences) based on the user data. No lists, no markdown. Warm, motivating tone.';
-
-  const userMsg =
-    (lang === 'en' ? 'User habits this week:\n' : 'Привычки пользователя за неделю:\n') +
-    summary
-      .map(
-        (s) =>
-          `- ${s.name}: streak ${s.streak}d, week ${s.weekRate}%`
-      )
-      .join('\n');
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 220,
-      system: lang === 'en' ? systemEn : systemRu,
-      messages: [{ role: 'user', content: userMsg }],
-    }),
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const data = await response.json();
-  const text = data?.content?.[0]?.text?.trim();
-  if (!text) throw new Error('empty');
   return text;
 }
 
