@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,7 +15,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { habitColors, habitIcons, useTheme } from '../theme';
 import { useI18n } from '../i18n';
 import { useProfile } from '../storage/profile';
-import { addHabit, getHabits } from '../storage/habits';
+import { addHabit, deleteHabit, getHabits, updateHabit } from '../storage/habits';
 import { syncNotifications } from '../services/notifications';
 
 const FREE_LIMIT = 3;
@@ -30,19 +31,28 @@ function dateToTime(d) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-export default function AddHabitScreen({ navigation }) {
+export default function AddHabitScreen({ navigation, route }) {
   const { theme } = useTheme();
   const { t } = useI18n();
   const { premium } = useProfile();
 
-  const [name, setName] = useState('');
-  const [icon, setIcon] = useState(habitIcons[0]);
-  const [customIcon, setCustomIcon] = useState('');
-  const [color, setColor] = useState(habitColors[0]);
-  const [reminder, setReminder] = useState(null);
+  const editing = route?.params?.habit;
+  const isEdit = !!editing;
+  const initialIcon = editing?.icon || habitIcons[0];
+  const initialIsCustom = editing && !habitIcons.includes(editing.icon);
+
+  const [name, setName] = useState(editing?.name || '');
+  const [icon, setIcon] = useState(initialIcon);
+  const [customIcon, setCustomIcon] = useState(initialIsCustom ? editing.icon : '');
+  const [color, setColor] = useState(editing?.color || habitColors[0]);
+  const [reminder, setReminder] = useState(editing?.reminder ?? null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [freqType, setFreqType] = useState('daily');
-  const [weekdays, setWeekdays] = useState([0, 1, 2, 3, 4, 5, 6]);
+  const [freqType, setFreqType] = useState(editing?.frequency?.type || 'daily');
+  const [weekdays, setWeekdays] = useState(
+    editing?.frequency?.type === 'weekly'
+      ? editing.frequency.days || []
+      : [0, 1, 2, 3, 4, 5, 6]
+  );
   const [saving, setSaving] = useState(false);
 
   const isCustom = customIcon && icon === customIcon;
@@ -58,14 +68,7 @@ export default function AddHabitScreen({ navigation }) {
   const handleSave = async () => {
     if (!canSave || saving) return;
     setSaving(true);
-    const existing = await getHabits();
-    if (!premium && existing.length >= FREE_LIMIT) {
-      setSaving(false);
-      navigation.replace('Premium');
-      return;
-    }
-    const habit = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    const patch = {
       name: name.trim(),
       icon,
       color,
@@ -74,12 +77,43 @@ export default function AddHabitScreen({ navigation }) {
         freqType === 'daily'
           ? { type: 'daily' }
           : { type: 'weekly', days: weekdays },
-      createdAt: Date.now(),
     };
-    const next = await addHabit(habit);
+    let next;
+    if (isEdit) {
+      next = await updateHabit(editing.id, patch);
+    } else {
+      const existing = await getHabits();
+      if (!premium && existing.length >= FREE_LIMIT) {
+        setSaving(false);
+        navigation.replace('Premium');
+        return;
+      }
+      const habit = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        ...patch,
+        createdAt: Date.now(),
+      };
+      next = await addHabit(habit);
+    }
     await syncNotifications(next).catch(() => {});
     setSaving(false);
     navigation.goBack();
+  };
+
+  const handleDelete = () => {
+    if (!isEdit) return;
+    Alert.alert(t.add.confirmDeleteTitle, t.add.confirmDeleteText, [
+      { text: t.add.cancel, style: 'cancel' },
+      {
+        text: t.add.delete,
+        style: 'destructive',
+        onPress: async () => {
+          const next = await deleteHabit(editing.id);
+          await syncNotifications(next).catch(() => {});
+          navigation.goBack();
+        },
+      },
+    ]);
   };
 
   const handleTimeChange = (event, date) => {
@@ -98,7 +132,9 @@ export default function AddHabitScreen({ navigation }) {
           <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
             <Text style={[styles.headerBtn, { color: theme.textMuted }]}>{t.add.cancel}</Text>
           </Pressable>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>{t.add.title}</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>
+            {isEdit ? t.add.editTitle : t.add.title}
+          </Text>
           <Pressable onPress={handleSave} disabled={!canSave} hitSlop={10}>
             <Text
               style={[
@@ -300,6 +336,24 @@ export default function AddHabitScreen({ navigation }) {
               </View>
             ) : null}
           </Section>
+
+          {isEdit ? (
+            <Pressable
+              onPress={handleDelete}
+              style={({ pressed }) => [
+                styles.deleteBtn,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.danger,
+                  opacity: pressed ? 0.8 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.deleteBtnText, { color: theme.danger }]}>
+                {t.add.delete}
+              </Text>
+            </Pressable>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -498,4 +552,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   pickerDoneText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  deleteBtn: {
+    marginTop: 28,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  deleteBtnText: { fontSize: 14, fontWeight: '700' },
 });

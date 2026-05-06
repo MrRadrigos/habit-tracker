@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,6 +15,7 @@ import { useI18n } from '../i18n';
 import { useProfile } from '../storage/profile';
 import {
   calculateStreak,
+  deleteHabit,
   getCompletions,
   getHabits,
   isScheduledToday,
@@ -117,6 +119,32 @@ export default function HomeScreen({ navigation }) {
     setCompletions(updated);
   };
 
+  const handleLongPress = (habit) => {
+    Alert.alert(habit.name, t.home.actionsTitle || '', [
+      { text: t.add.cancel, style: 'cancel' },
+      {
+        text: t.add.edit,
+        onPress: () => navigation.navigate('AddHabit', { habit }),
+      },
+      {
+        text: t.add.delete,
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert(t.add.confirmDeleteTitle, t.add.confirmDeleteText, [
+            { text: t.add.cancel, style: 'cancel' },
+            {
+              text: t.add.delete,
+              style: 'destructive',
+              onPress: async () => {
+                const next = await deleteHabit(habit.id);
+                setHabits(next);
+              },
+            },
+          ]),
+      },
+    ]);
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await load();
@@ -196,6 +224,7 @@ export default function HomeScreen({ navigation }) {
               completionsForHabit={completions[habit.id] || []}
               streak={calculateStreak(habit, completions[habit.id] || [])}
               onToggle={() => handleToggle(habit.id)}
+              onLongPress={() => handleLongPress(habit)}
             />
           ))
         )}

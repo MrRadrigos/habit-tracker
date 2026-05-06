@@ -108,7 +108,7 @@ function WeekStrip({ habit, doneSet, color }) {
   );
 }
 
-export default function HabitCard({ habit, completionsForHabit, streak, onToggle }) {
+export default function HabitCard({ habit, completionsForHabit, streak, onToggle, onLongPress }) {
   const { theme } = useTheme();
   const { t } = useI18n();
   const doneSet = new Set(completionsForHabit);
@@ -116,13 +116,16 @@ export default function HabitCard({ habit, completionsForHabit, streak, onToggle
   const color = habit.color;
 
   return (
-    <View
-      style={[
+    <Pressable
+      onLongPress={onLongPress}
+      delayLongPress={350}
+      style={({ pressed }) => [
         styles.card,
         {
           backgroundColor: theme.card,
           shadowColor: theme.shadow,
           borderColor: theme.border,
+          opacity: pressed ? 0.95 : 1,
         },
       ]}
     >
@@ -147,7 +150,7 @@ export default function HabitCard({ habit, completionsForHabit, streak, onToggle
         <Checkbox checked={checked} color={color} onPress={onToggle} />
       </View>
       <WeekStrip habit={habit} doneSet={doneSet} color={color} />
-    </View>
+    </Pressable>
   );
 }
 

@@ -37,10 +37,22 @@ export async function addHabit(habit) {
   return next;
 }
 
+export async function updateHabit(id, patch) {
+  const habits = await getHabits();
+  const next = habits.map((h) => (h.id === id ? { ...h, ...patch, id } : h));
+  await saveHabits(next);
+  return next;
+}
+
 export async function deleteHabit(id) {
   const habits = await getHabits();
   const next = habits.filter((h) => h.id !== id);
   await saveHabits(next);
+  const completions = await getCompletions();
+  if (completions[id]) {
+    delete completions[id];
+    await saveCompletions(completions);
+  }
   return next;
 }
 

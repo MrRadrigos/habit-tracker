@@ -2,6 +2,7 @@ import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HomeScreen from '../screens/HomeScreen';
 import AddHabitScreen from '../screens/AddHabitScreen';
 import PremiumScreen from '../screens/PremiumScreen';
@@ -22,6 +23,8 @@ function tabIcon(emoji) {
 function Tabs() {
   const { theme } = useTheme();
   const { t } = useI18n();
+  const insets = useSafeAreaInsets();
+  const bottomInset = insets.bottom;
   return (
     <Tab.Navigator
       screenOptions={{
@@ -29,8 +32,8 @@ function Tabs() {
         tabBarStyle: {
           backgroundColor: theme.bgElevated,
           borderTopColor: theme.border,
-          height: 64,
-          paddingBottom: 10,
+          height: 60 + bottomInset,
+          paddingBottom: bottomInset > 0 ? bottomInset : 10,
           paddingTop: 8,
         },
         tabBarActiveTintColor: theme.accent,
