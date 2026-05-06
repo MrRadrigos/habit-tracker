@@ -1,0 +1,87 @@
+import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Text } from 'react-native';
+import HomeScreen from '../screens/HomeScreen';
+import PlaceholderScreen from '../screens/PlaceholderScreen';
+import { useTheme } from '../theme';
+import { useI18n } from '../i18n';
+
+const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
+
+function tabIcon(emoji) {
+  return ({ color, focused }) => (
+    <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.55, color }}>{emoji}</Text>
+  );
+}
+
+function Tabs() {
+  const { theme } = useTheme();
+  const { t } = useI18n();
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: theme.bgElevated,
+          borderTopColor: theme.border,
+          height: 64,
+          paddingBottom: 10,
+          paddingTop: 8,
+        },
+        tabBarActiveTintColor: theme.accent,
+        tabBarInactiveTintColor: theme.textDim,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+      }}
+    >
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ tabBarLabel: t.tabs.home, tabBarIcon: tabIcon('🏠') }}
+      />
+      <Tab.Screen
+        name="Stats"
+        component={() => <PlaceholderScreen title={t.tabs.stats} />}
+        options={{ tabBarLabel: t.tabs.stats, tabBarIcon: tabIcon('📊') }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={() => <PlaceholderScreen title={t.tabs.settings} />}
+        options={{ tabBarLabel: t.tabs.settings, tabBarIcon: tabIcon('⚙️') }}
+      />
+    </Tab.Navigator>
+  );
+}
+
+export default function RootNavigator() {
+  const { theme } = useTheme();
+  const navTheme = {
+    ...(theme.name === 'dark' ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(theme.name === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
+      background: theme.bg,
+      card: theme.bgElevated,
+      text: theme.text,
+      border: theme.border,
+      primary: theme.accent,
+    },
+  };
+  return (
+    <NavigationContainer theme={navTheme}>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Tabs" component={Tabs} />
+        <Stack.Screen
+          name="AddHabit"
+          component={() => <PlaceholderScreen title="Добавить привычку" />}
+          options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="Premium"
+          component={() => <PlaceholderScreen title="Premium" />}
+          options={{ presentation: 'modal' }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
