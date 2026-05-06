@@ -2,10 +2,17 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { useI18n } from '../i18n';
+import { useProfile } from '../storage/profile';
 
 export default function PremiumScreen({ navigation }) {
   const { theme } = useTheme();
   const { t } = useI18n();
+  const { setPremium } = useProfile();
+
+  const handleSubscribe = async () => {
+    await setPremium(true);
+    navigation.goBack();
+  };
 
   const features = [
     { icon: '∞', text: t.premium.feature1 },
@@ -67,7 +74,7 @@ export default function PremiumScreen({ navigation }) {
 
       <View style={[styles.footer, { backgroundColor: theme.bg, borderTopColor: theme.border }]}>
         <Pressable
-          onPress={() => navigation.goBack()}
+          onPress={handleSubscribe}
           style={({ pressed }) => [
             styles.cta,
             {

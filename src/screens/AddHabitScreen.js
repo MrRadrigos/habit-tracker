@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { habitColors, habitIcons, useTheme } from '../theme';
 import { useI18n } from '../i18n';
+import { useProfile } from '../storage/profile';
 import { addHabit, getHabits } from '../storage/habits';
 import { syncNotifications } from '../services/notifications';
 
@@ -32,15 +33,19 @@ function dateToTime(d) {
 export default function AddHabitScreen({ navigation }) {
   const { theme } = useTheme();
   const { t } = useI18n();
+  const { premium } = useProfile();
 
   const [name, setName] = useState('');
   const [icon, setIcon] = useState(habitIcons[0]);
+  const [customIcon, setCustomIcon] = useState('');
   const [color, setColor] = useState(habitColors[0]);
   const [reminder, setReminder] = useState(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [freqType, setFreqType] = useState('daily');
   const [weekdays, setWeekdays] = useState([0, 1, 2, 3, 4, 5, 6]);
   const [saving, setSaving] = useState(false);
+
+  const isCustom = customIcon && icon === customIcon;
 
   const toggleDay = (i) => {
     setWeekdays((prev) =>
@@ -54,7 +59,7 @@ export default function AddHabitScreen({ navigation }) {
     if (!canSave || saving) return;
     setSaving(true);
     const existing = await getHabits();
-    if (existing.length >= FREE_LIMIT) {
+    if (!premium && existing.length >= FREE_LIMIT) {
       setSaving(false);
       navigation.replace('Premium');
       return;
@@ -131,7 +136,7 @@ export default function AddHabitScreen({ navigation }) {
           <Section label={t.add.icon} theme={theme}>
             <View style={styles.iconGrid}>
               {habitIcons.map((i) => {
-                const active = i === icon;
+                const active = !isCustom && i === icon;
                 return (
                   <Pressable
                     key={i}
@@ -148,7 +153,44 @@ export default function AddHabitScreen({ navigation }) {
                   </Pressable>
                 );
               })}
+              <Pressable
+                onPress={() => {
+                  if (!premium) navigation.navigate('Premium');
+                }}
+                style={[
+                  styles.iconCell,
+                  {
+                    backgroundColor: isCustom ? color + '33' : theme.card,
+                    borderColor: isCustom ? color : theme.border,
+                    borderStyle: premium ? 'solid' : 'dashed',
+                  },
+                ]}
+              >
+                {premium ? (
+                  <Text style={styles.iconCellText}>{customIcon || '+'}</Text>
+                ) : (
+                  <Text style={styles.iconCellLock}>👑</Text>
+                )}
+              </Pressable>
             </View>
+            {premium ? (
+              <TextInput
+                value={customIcon}
+                onChangeText={(v) => {
+                  setCustomIcon(v);
+                  if (v) setIcon(v);
+                  else setIcon(habitIcons[0]);
+                }}
+                placeholder={t.add.customIconHint}
+                placeholderTextColor={theme.textDim}
+                maxLength={4}
+                style={[
+                  styles.input,
+                  styles.customIconInput,
+                  { color: theme.text, backgroundColor: theme.card, borderColor: theme.border },
+                ]}
+              />
+            ) : null}
           </Section>
 
           <Section label={t.add.color} theme={theme}>
@@ -395,6 +437,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   iconCellText: { fontSize: 22 },
+  iconCellLock: { fontSize: 18 },
+  customIconInput: {
+    marginTop: 10,
+    textAlign: 'center',
+  },
   colorRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

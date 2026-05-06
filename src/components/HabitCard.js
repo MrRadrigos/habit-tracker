@@ -44,13 +44,15 @@ function Checkbox({ checked, color, onPress }) {
 
   return (
     <Pressable onPress={handlePress} hitSlop={10}>
-      <Animated.View
-        style={[
-          styles.checkbox,
-          { borderColor: color, backgroundColor: bg, transform: [{ scale }] },
-        ]}
-      >
-        {checked ? <Text style={styles.checkmark}>✓</Text> : null}
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <Animated.View
+          style={[
+            styles.checkbox,
+            { borderColor: color, backgroundColor: bg },
+          ]}
+        >
+          {checked ? <Text style={styles.checkmark}>✓</Text> : null}
+        </Animated.View>
       </Animated.View>
     </Pressable>
   );
