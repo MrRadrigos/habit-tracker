@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { habitColors, habitIcons, useTheme } from '../theme';
 import { useI18n } from '../i18n';
-import { useProfile } from '../storage/profile';
+import { MAX_CUSTOM, useProfile } from '../storage/profile';
 import { addHabit, deleteHabit, getHabits, updateHabit } from '../storage/habits';
 import { syncNotifications } from '../services/notifications';
 
@@ -34,16 +34,14 @@ function dateToTime(d) {
 export default function AddHabitScreen({ navigation, route }) {
   const { theme } = useTheme();
   const { t } = useI18n();
-  const { premium } = useProfile();
+  const { premium, customIcons, addCustomIcon, removeCustomIcon } = useProfile();
 
   const editing = route?.params?.habit;
   const isEdit = !!editing;
   const initialIcon = editing?.icon || habitIcons[0];
-  const initialIsCustom = editing && !habitIcons.includes(editing.icon);
 
   const [name, setName] = useState(editing?.name || '');
   const [icon, setIcon] = useState(initialIcon);
-  const [customIcon, setCustomIcon] = useState(initialIsCustom ? editing.icon : '');
   const [color, setColor] = useState(editing?.color || habitColors[0]);
   const [reminder, setReminder] = useState(editing?.reminder ?? null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -54,8 +52,43 @@ export default function AddHabitScreen({ navigation, route }) {
       : [0, 1, 2, 3, 4, 5, 6]
   );
   const [saving, setSaving] = useState(false);
+  const [draftEmoji, setDraftEmoji] = useState('');
+  const [inputOpen, setInputOpen] = useState(false);
 
-  const isCustom = customIcon && icon === customIcon;
+  const handleAddCustom = async () => {
+    const v = draftEmoji.trim();
+    if (!v) {
+      setInputOpen(false);
+      return;
+    }
+    const ok = await addCustomIcon(v);
+    if (ok) setIcon(v);
+    setDraftEmoji('');
+    setInputOpen(false);
+  };
+
+  const handleRemoveCustom = (emoji) => {
+    Alert.alert(t.add.removeIconTitle, t.add.removeIconText, [
+      { text: t.add.cancel, style: 'cancel' },
+      {
+        text: t.add.remove,
+        style: 'destructive',
+        onPress: async () => {
+          await removeCustomIcon(emoji);
+          if (icon === emoji) setIcon(habitIcons[0]);
+        },
+      },
+    ]);
+  };
+
+  const handlePlusPress = () => {
+    if (!premium) {
+      navigation.navigate('Premium');
+      return;
+    }
+    if (customIcons.length >= MAX_CUSTOM) return;
+    setInputOpen(true);
+  };
 
   const toggleDay = (i) => {
     setWeekdays((prev) =>
@@ -172,7 +205,7 @@ export default function AddHabitScreen({ navigation, route }) {
           <Section label={t.add.icon} theme={theme}>
             <View style={styles.iconGrid}>
               {habitIcons.map((i) => {
-                const active = !isCustom && i === icon;
+                const active = i === icon;
                 return (
                   <Pressable
                     key={i}
@@ -189,43 +222,79 @@ export default function AddHabitScreen({ navigation, route }) {
                   </Pressable>
                 );
               })}
-              <Pressable
-                onPress={() => {
-                  if (!premium) navigation.navigate('Premium');
-                }}
-                style={[
-                  styles.iconCell,
-                  {
-                    backgroundColor: isCustom ? color + '33' : theme.card,
-                    borderColor: isCustom ? color : theme.border,
-                    borderStyle: premium ? 'solid' : 'dashed',
-                  },
-                ]}
-              >
-                {premium ? (
-                  <Text style={styles.iconCellText}>{customIcon || '+'}</Text>
-                ) : (
-                  <Text style={styles.iconCellLock}>👑</Text>
-                )}
-              </Pressable>
+              {customIcons.map((i) => {
+                const active = i === icon;
+                return (
+                  <Pressable
+                    key={`c:${i}`}
+                    onPress={() => setIcon(i)}
+                    onLongPress={() => handleRemoveCustom(i)}
+                    delayLongPress={350}
+                    style={[
+                      styles.iconCell,
+                      {
+                        backgroundColor: active ? color + '33' : theme.card,
+                        borderColor: active ? color : theme.accent,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.iconCellText}>{i}</Text>
+                  </Pressable>
+                );
+              })}
+              {(!premium || customIcons.length < MAX_CUSTOM) && (
+                <Pressable
+                  onPress={handlePlusPress}
+                  style={[
+                    styles.iconCell,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                      borderStyle: 'dashed',
+                    },
+                  ]}
+                >
+                  <Text style={styles.iconCellLock}>{premium ? '+' : '👑'}</Text>
+                </Pressable>
+              )}
             </View>
-            {premium ? (
-              <TextInput
-                value={customIcon}
-                onChangeText={(v) => {
-                  setCustomIcon(v);
-                  if (v) setIcon(v);
-                  else setIcon(habitIcons[0]);
-                }}
-                placeholder={t.add.customIconHint}
-                placeholderTextColor={theme.textDim}
-                maxLength={4}
-                style={[
-                  styles.input,
-                  styles.customIconInput,
-                  { color: theme.text, backgroundColor: theme.card, borderColor: theme.border },
-                ]}
-              />
+            {inputOpen && premium ? (
+              <View style={styles.customRow}>
+                <TextInput
+                  value={draftEmoji}
+                  onChangeText={setDraftEmoji}
+                  placeholder={t.add.customIconHint}
+                  placeholderTextColor={theme.textDim}
+                  maxLength={4}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleAddCustom}
+                  style={[
+                    styles.input,
+                    styles.customIconInput,
+                    {
+                      color: theme.text,
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                      flex: 1,
+                    },
+                  ]}
+                />
+                <Pressable
+                  onPress={handleAddCustom}
+                  style={({ pressed }) => [
+                    styles.customAddBtn,
+                    { backgroundColor: color, opacity: pressed ? 0.85 : 1 },
+                  ]}
+                >
+                  <Text style={styles.customAddBtnText}>{t.add.customIconAdd}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {premium && customIcons.length >= MAX_CUSTOM ? (
+              <Text style={[styles.helper, { color: theme.textDim }]}>
+                {t.add.customIconLimit}
+              </Text>
             ) : null}
           </Section>
 
@@ -491,10 +560,25 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   iconCellText: { fontSize: 22 },
-  iconCellLock: { fontSize: 18 },
-  customIconInput: {
+  iconCellLock: { fontSize: 20, fontWeight: '300' },
+  customRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 10,
+  },
+  customIconInput: {
     textAlign: 'center',
+  },
+  customAddBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  customAddBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  helper: {
+    fontSize: 12,
+    marginTop: 8,
   },
   colorRow: {
     flexDirection: 'row',
