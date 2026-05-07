@@ -1,5 +1,5 @@
-const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
-const MODEL = 'claude-sonnet-4-20250514';
+const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
+const MODEL = 'gpt-4o-mini';
 
 const SYSTEM_PROMPTS = {
   ru: 'Ты доброжелательный коуч по привычкам. Дай один краткий персональный инсайт (2–3 предложения) на основе данных пользователя. Без списков, без markdown. Тон — тёплый и мотивирующий.',
@@ -53,7 +53,7 @@ export default {
     if (url.pathname !== '/insight' || request.method !== 'POST') {
       return json({ error: 'not_found' }, 404);
     }
-    if (!env.ANTHROPIC_API_KEY) {
+    if (!env.OPENAI_API_KEY) {
       return json({ error: 'server_misconfigured' }, 500);
     }
 
@@ -69,18 +69,20 @@ export default {
 
     const { summary, lang } = body;
 
-    const upstream = await fetch(ANTHROPIC_URL, {
+    const upstream = await fetch(OPENAI_URL, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-api-key': env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
+        authorization: `Bearer ${env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 220,
-        system: SYSTEM_PROMPTS[lang],
-        messages: [{ role: 'user', content: buildUserMessage(summary, lang) }],
+        temperature: 0.7,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPTS[lang] },
+          { role: 'user', content: buildUserMessage(summary, lang) },
+        ],
       }),
     });
 
@@ -90,7 +92,7 @@ export default {
     }
 
     const data = await upstream.json();
-    const text = data?.content?.[0]?.text?.trim();
+    const text = data?.choices?.[0]?.message?.content?.trim();
     if (!text) return json({ error: 'empty_response' }, 502);
     return json({ text });
   },

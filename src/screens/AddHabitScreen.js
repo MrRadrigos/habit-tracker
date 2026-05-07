@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { habitColors, habitIcons, useTheme } from '../theme';
 import { useI18n } from '../i18n';
-import { MAX_CUSTOM, useProfile } from '../storage/profile';
+import { MAX_COLORS, MAX_CUSTOM, normalizeHex, useProfile } from '../storage/profile';
 import { addHabit, deleteHabit, getHabits, updateHabit } from '../storage/habits';
 import { syncNotifications } from '../services/notifications';
 
@@ -34,7 +34,15 @@ function dateToTime(d) {
 export default function AddHabitScreen({ navigation, route }) {
   const { theme } = useTheme();
   const { t } = useI18n();
-  const { premium, customIcons, addCustomIcon, removeCustomIcon } = useProfile();
+  const {
+    premium,
+    customIcons,
+    customColors,
+    addCustomIcon,
+    removeCustomIcon,
+    addCustomColor,
+    removeCustomColor,
+  } = useProfile();
 
   const editing = route?.params?.habit;
   const isEdit = !!editing;
@@ -54,6 +62,8 @@ export default function AddHabitScreen({ navigation, route }) {
   const [saving, setSaving] = useState(false);
   const [draftEmoji, setDraftEmoji] = useState('');
   const [inputOpen, setInputOpen] = useState(false);
+  const [draftColor, setDraftColor] = useState('');
+  const [colorInputOpen, setColorInputOpen] = useState(false);
 
   const handleAddCustom = async () => {
     const v = draftEmoji.trim();
@@ -89,6 +99,44 @@ export default function AddHabitScreen({ navigation, route }) {
     if (customIcons.length >= MAX_CUSTOM) return;
     setInputOpen(true);
   };
+
+  const handleAddColor = async () => {
+    const norm = normalizeHex(draftColor);
+    if (!norm) {
+      setColorInputOpen(false);
+      setDraftColor('');
+      return;
+    }
+    const added = await addCustomColor(norm);
+    if (added) setColor(added);
+    setDraftColor('');
+    setColorInputOpen(false);
+  };
+
+  const handleRemoveColor = (hex) => {
+    Alert.alert(t.add.removeColorTitle, t.add.removeColorText, [
+      { text: t.add.cancel, style: 'cancel' },
+      {
+        text: t.add.remove,
+        style: 'destructive',
+        onPress: async () => {
+          await removeCustomColor(hex);
+          if (color === hex) setColor(habitColors[0]);
+        },
+      },
+    ]);
+  };
+
+  const handleColorPlusPress = () => {
+    if (!premium) {
+      navigation.navigate('Premium');
+      return;
+    }
+    if (customColors.length >= MAX_COLORS) return;
+    setColorInputOpen(true);
+  };
+
+  const draftSwatch = normalizeHex(draftColor);
 
   const toggleDay = (i) => {
     setWeekdays((prev) =>
@@ -315,7 +363,94 @@ export default function AddHabitScreen({ navigation, route }) {
                   </Pressable>
                 );
               })}
+              {customColors.map((c) => {
+                const active = c === color;
+                return (
+                  <Pressable
+                    key={`cc:${c}`}
+                    onPress={() => setColor(c)}
+                    onLongPress={() => handleRemoveColor(c)}
+                    delayLongPress={350}
+                    style={[
+                      styles.colorDot,
+                      { backgroundColor: c, borderColor: active ? theme.text : theme.accent },
+                    ]}
+                  >
+                    {active ? <Text style={styles.colorCheck}>✓</Text> : null}
+                  </Pressable>
+                );
+              })}
+              {(!premium || customColors.length < MAX_COLORS) && (
+                <Pressable
+                  onPress={handleColorPlusPress}
+                  style={[
+                    styles.colorDot,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                      borderWidth: 1.5,
+                      borderStyle: 'dashed',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.colorPlus, { color: theme.textMuted }]}>
+                    {premium ? '+' : '👑'}
+                  </Text>
+                </Pressable>
+              )}
             </View>
+            {colorInputOpen && premium ? (
+              <View style={styles.customRow}>
+                <View
+                  style={[
+                    styles.colorPreview,
+                    {
+                      backgroundColor: draftSwatch || theme.cardAlt,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                />
+                <TextInput
+                  value={draftColor}
+                  onChangeText={setDraftColor}
+                  placeholder={t.add.customColorHint}
+                  placeholderTextColor={theme.textDim}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  maxLength={7}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleAddColor}
+                  style={[
+                    styles.input,
+                    {
+                      color: theme.text,
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                      flex: 1,
+                      paddingHorizontal: 14,
+                    },
+                  ]}
+                />
+                <Pressable
+                  onPress={handleAddColor}
+                  style={({ pressed }) => [
+                    styles.customAddBtn,
+                    {
+                      backgroundColor: draftSwatch || theme.textDim,
+                      opacity: pressed ? 0.85 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={styles.customAddBtnText}>{t.add.customIconAdd}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {premium && customColors.length >= MAX_COLORS ? (
+              <Text style={[styles.helper, { color: theme.textDim }]}>
+                {t.add.colorLimit}
+              </Text>
+            ) : null}
           </Section>
 
           <Section label={t.add.reminder} theme={theme}>
@@ -595,6 +730,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   colorCheck: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  colorPlus: { fontSize: 18, fontWeight: '300' },
+  colorPreview: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 10,
+    borderWidth: 1,
+  },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
   chip: {
     paddingHorizontal: 14,

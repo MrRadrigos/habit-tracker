@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,12 +13,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { useI18n } from '../i18n';
 import { useProfile } from '../storage/profile';
+import { isPurchasesAvailable } from '../services/purchases';
 
 export default function SettingsScreen({ navigation }) {
   const { theme, mode, setMode } = useTheme();
   const { t, lang, setLang } = useI18n();
-  const { name, setName, premium } = useProfile();
+  const { name, setName, premium, restorePurchases } = useProfile();
   const [draftName, setDraftName] = useState(name);
+  const [restoring, setRestoring] = useState(false);
+
+  const handleRestore = async () => {
+    if (restoring) return;
+    setRestoring(true);
+    try {
+      const ok = await restorePurchases();
+      Alert.alert(
+        ok ? t.premium.restoreSuccessTitle : t.premium.restoreEmptyTitle,
+        ok ? t.premium.restoreSuccessBody : t.premium.restoreEmptyBody
+      );
+    } finally {
+      setRestoring(false);
+    }
+  };
 
   const onBlurName = () => {
     if (draftName !== name) setName(draftName);
@@ -101,6 +118,25 @@ export default function SettingsScreen({ navigation }) {
             <Text style={[styles.chev, { color: theme.textDim }]}>›</Text>
           </View>
         </Pressable>
+
+        {isPurchasesAvailable() ? (
+          <Pressable
+            onPress={handleRestore}
+            disabled={restoring}
+            style={({ pressed }) => [
+              styles.card,
+              cardStyle(theme),
+              { marginTop: 8, opacity: pressed || restoring ? 0.85 : 1 },
+            ]}
+          >
+            <View style={styles.row}>
+              <Text style={[styles.rowLabel, { color: theme.text }]}>
+                {restoring ? t.premium.restoring : t.premium.restore}
+              </Text>
+              <Text style={[styles.chev, { color: theme.textDim }]}>›</Text>
+            </View>
+          </Pressable>
+        ) : null}
 
         <SectionLabel theme={theme}>{t.settings.about}</SectionLabel>
         <View style={[styles.card, cardStyle(theme)]}>

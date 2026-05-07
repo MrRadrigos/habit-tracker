@@ -1,7 +1,10 @@
 # Habit insights proxy
 
-Tiny Cloudflare Worker that holds the Anthropic API key server-side and exposes
+Tiny Cloudflare Worker that holds the OpenAI API key server-side and exposes
 a single `POST /insight` endpoint that the mobile app calls.
+
+The worker uses model `gpt-4o-mini` — small, fast and cheap for short
+motivational notes. Swap `MODEL` in `worker.js` if you want a different one.
 
 ## One-time deploy
 
@@ -9,9 +12,9 @@ a single `POST /insight` endpoint that the mobile app calls.
 2. Login to Cloudflare: `wrangler login`
 3. From this folder: `wrangler deploy`
    You'll get a URL like `https://habit-insights.<your-subdomain>.workers.dev`.
-4. Set the API key as a Cloudflare secret (it never lands in code or git):
-   `wrangler secret put ANTHROPIC_API_KEY`
-   Paste your `sk-ant-...` key when prompted.
+4. Set the OpenAI API key as a Cloudflare secret (it never lands in code or git):
+   `wrangler secret put OPENAI_API_KEY`
+   Paste your `sk-...` key when prompted.
 
 ## Wire the app
 

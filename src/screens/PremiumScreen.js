@@ -1,18 +1,36 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { useI18n } from '../i18n';
 import { useProfile } from '../storage/profile';
+import {
+  getCurrentOffering,
+  isPurchasesAvailable,
+  purchasePackage,
+} from '../services/purchases';
 
 export default function PremiumScreen({ navigation }) {
   const { theme } = useTheme();
   const { t } = useI18n();
-  const { setPremium } = useProfile();
+  const { setPremium, restorePurchases } = useProfile();
 
-  const handleSubscribe = async () => {
-    await setPremium(true);
-    navigation.goBack();
-  };
+  const [offering, setOffering] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+
+  useEffect(() => {
+    if (!isPurchasesAvailable()) return;
+    getCurrentOffering().then(setOffering);
+  }, []);
 
   const features = [
     { icon: '∞', text: t.premium.feature1 },
@@ -20,6 +38,54 @@ export default function PremiumScreen({ navigation }) {
     { icon: '☁️', text: t.premium.feature3 },
     { icon: '⚡', text: t.premium.feature4 },
   ];
+
+  const ctaPriceLabel = offering?.availablePackages?.[0]?.product?.priceString;
+  const fallbackPrice = t.premium.cta;
+  const ctaText = ctaPriceLabel
+    ? `${t.premium.ctaPrefix} ${ctaPriceLabel}`
+    : fallbackPrice;
+
+  const handleSubscribe = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (offering && offering.availablePackages?.length > 0) {
+        const pkg = offering.availablePackages[0];
+        const ok = await purchasePackage(pkg);
+        if (ok) {
+          await setPremium(true);
+          navigation.goBack();
+          return;
+        }
+        Alert.alert(t.premium.errorTitle, t.premium.errorBody);
+      } else {
+        // Stub mode (no RC configured): just toggle locally.
+        await setPremium(true);
+        navigation.goBack();
+      }
+    } catch (err) {
+      if (!err?.userCancelled) {
+        Alert.alert(t.premium.errorTitle, err?.message || t.premium.errorBody);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    if (restoring) return;
+    setRestoring(true);
+    try {
+      const ok = await restorePurchases();
+      Alert.alert(
+        ok ? t.premium.restoreSuccessTitle : t.premium.restoreEmptyTitle,
+        ok ? t.premium.restoreSuccessBody : t.premium.restoreEmptyBody
+      );
+      if (ok) navigation.goBack();
+    } finally {
+      setRestoring(false);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg }]} edges={['top']}>
@@ -75,19 +141,26 @@ export default function PremiumScreen({ navigation }) {
       <View style={[styles.footer, { backgroundColor: theme.bg, borderTopColor: theme.border }]}>
         <Pressable
           onPress={handleSubscribe}
+          disabled={busy}
           style={({ pressed }) => [
             styles.cta,
             {
               backgroundColor: theme.accent,
-              opacity: pressed ? 0.85 : 1,
+              opacity: pressed || busy ? 0.85 : 1,
               shadowColor: theme.accent,
             },
           ]}
         >
-          <Text style={styles.ctaText}>{t.premium.cta}</Text>
+          {busy ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.ctaText}>{ctaText}</Text>
+          )}
         </Pressable>
-        <Pressable onPress={() => navigation.goBack()} style={styles.later} hitSlop={8}>
-          <Text style={[styles.laterText, { color: theme.textMuted }]}>{t.premium.later}</Text>
+        <Pressable onPress={handleRestore} disabled={restoring} style={styles.later} hitSlop={8}>
+          <Text style={[styles.laterText, { color: theme.textMuted }]}>
+            {restoring ? t.premium.restoring : t.premium.restore}
+          </Text>
         </Pressable>
       </View>
     </SafeAreaView>

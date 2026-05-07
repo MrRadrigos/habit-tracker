@@ -34,7 +34,9 @@
       ]
     ],
     "extra": {
-      "insightsUrl": ""
+      "insightsUrl": "",
+      "revenueCatAndroidKey": "",
+      "revenueCatIosKey": ""
     }
   }
 }
