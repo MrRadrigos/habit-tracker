@@ -32,13 +32,13 @@ function Tabs() {
         tabBarStyle: {
           backgroundColor: theme.bgElevated,
           borderTopColor: theme.border,
-          height: 60 + bottomInset,
-          paddingBottom: bottomInset > 0 ? bottomInset : 10,
-          paddingTop: 8,
+          height: 50 + bottomInset,
+          paddingBottom: bottomInset > 0 ? bottomInset : 6,
+          paddingTop: 6,
         },
         tabBarActiveTintColor: theme.accent,
         tabBarInactiveTintColor: theme.textDim,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
       }}
     >
       <Tab.Screen
