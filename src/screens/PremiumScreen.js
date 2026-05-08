@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,24 +14,22 @@ import { useTheme } from '../theme';
 import { useI18n } from '../i18n';
 import { useProfile } from '../storage/profile';
 import {
-  getCurrentOffering,
-  isPurchasesAvailable,
-  purchasePackage,
+  isPaymentConfigured,
+  openCheckout,
 } from '../services/purchases';
+
+const POLL_INTERVAL_MS = 4000;
+const POLL_TIMEOUT_MS = 120000;
 
 export default function PremiumScreen({ navigation }) {
   const { theme } = useTheme();
   const { t } = useI18n();
-  const { setPremium, restorePurchases } = useProfile();
+  const { setPremium, refreshPremium, userId } = useProfile();
 
-  const [offering, setOffering] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [restoring, setRestoring] = useState(false);
-
-  useEffect(() => {
-    if (!isPurchasesAvailable()) return;
-    getCurrentOffering().then(setOffering);
-  }, []);
+  const [waiting, setWaiting] = useState(false);
+  const pollRef = useRef(null);
+  const pollDeadlineRef = useRef(0);
 
   const features = [
     { icon: '∞', text: t.premium.feature1 },
@@ -39,51 +38,73 @@ export default function PremiumScreen({ navigation }) {
     { icon: '⚡', text: t.premium.feature4 },
   ];
 
-  const ctaPriceLabel = offering?.availablePackages?.[0]?.product?.priceString;
-  const fallbackPrice = t.premium.cta;
-  const ctaText = ctaPriceLabel
-    ? `${t.premium.ctaPrefix} ${ctaPriceLabel}`
-    : fallbackPrice;
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    setWaiting(false);
+  };
+
+  const pollOnce = async () => {
+    const ok = await refreshPremium();
+    if (ok) {
+      stopPolling();
+      navigation.goBack();
+      return true;
+    }
+    if (Date.now() > pollDeadlineRef.current) {
+      stopPolling();
+    }
+    return false;
+  };
+
+  const startPolling = () => {
+    stopPolling();
+    setWaiting(true);
+    pollDeadlineRef.current = Date.now() + POLL_TIMEOUT_MS;
+    pollRef.current = setInterval(pollOnce, POLL_INTERVAL_MS);
+  };
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && waiting) {
+        pollOnce();
+      }
+    });
+    return () => {
+      sub.remove();
+      stopPolling();
+    };
+  }, [waiting]);
 
   const handleSubscribe = async () => {
     if (busy) return;
     setBusy(true);
     try {
-      if (offering && offering.availablePackages?.length > 0) {
-        const pkg = offering.availablePackages[0];
-        const ok = await purchasePackage(pkg);
-        if (ok) {
-          await setPremium(true);
-          navigation.goBack();
+      if (isPaymentConfigured()) {
+        if (!userId) {
+          Alert.alert(t.premium.errorTitle, t.premium.errorBody);
           return;
         }
-        Alert.alert(t.premium.errorTitle, t.premium.errorBody);
+        await openCheckout(userId);
+        startPolling();
       } else {
-        // Stub mode (no RC configured): just toggle locally.
+        // Stub mode while payment URL is not configured yet — just toggle.
         await setPremium(true);
         navigation.goBack();
       }
     } catch (err) {
-      if (!err?.userCancelled) {
-        Alert.alert(t.premium.errorTitle, err?.message || t.premium.errorBody);
-      }
+      Alert.alert(t.premium.errorTitle, err?.message || t.premium.errorBody);
     } finally {
       setBusy(false);
     }
   };
 
-  const handleRestore = async () => {
-    if (restoring) return;
-    setRestoring(true);
-    try {
-      const ok = await restorePurchases();
-      Alert.alert(
-        ok ? t.premium.restoreSuccessTitle : t.premium.restoreEmptyTitle,
-        ok ? t.premium.restoreSuccessBody : t.premium.restoreEmptyBody
-      );
-      if (ok) navigation.goBack();
-    } finally {
-      setRestoring(false);
+  const handleManualCheck = async () => {
+    const ok = await pollOnce();
+    if (!ok) {
+      Alert.alert(t.premium.notReadyTitle, t.premium.notReadyBody);
     }
   };
 
@@ -136,6 +157,25 @@ export default function PremiumScreen({ navigation }) {
             </View>
           ))}
         </View>
+
+        {waiting ? (
+          <View
+            style={[
+              styles.waiting,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+          >
+            <ActivityIndicator color={theme.accent} />
+            <Text style={[styles.waitingText, { color: theme.textMuted }]}>
+              {t.premium.waitingPayment}
+            </Text>
+            <Pressable onPress={handleManualCheck} hitSlop={8}>
+              <Text style={[styles.waitingLink, { color: theme.accent }]}>
+                {t.premium.checkStatus}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
       </ScrollView>
 
       <View style={[styles.footer, { backgroundColor: theme.bg, borderTopColor: theme.border }]}>
@@ -154,12 +194,12 @@ export default function PremiumScreen({ navigation }) {
           {busy ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.ctaText}>{ctaText}</Text>
+            <Text style={styles.ctaText}>{t.premium.openCheckout}</Text>
           )}
         </Pressable>
-        <Pressable onPress={handleRestore} disabled={restoring} style={styles.later} hitSlop={8}>
+        <Pressable onPress={handleManualCheck} style={styles.later} hitSlop={8}>
           <Text style={[styles.laterText, { color: theme.textMuted }]}>
-            {restoring ? t.premium.restoring : t.premium.restore}
+            {t.premium.restore}
           </Text>
         </Pressable>
       </View>
@@ -222,6 +262,16 @@ const styles = StyleSheet.create({
   },
   featureIconText: { fontSize: 18, fontWeight: '700' },
   featureText: { flex: 1, fontSize: 14, fontWeight: '500' },
+  waiting: {
+    width: '100%',
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+  },
+  waitingText: { marginTop: 8, fontSize: 13, textAlign: 'center' },
+  waitingLink: { marginTop: 10, fontSize: 13, fontWeight: '700' },
   footer: {
     paddingHorizontal: 22,
     paddingTop: 14,

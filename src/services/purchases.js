@@ -1,83 +1,68 @@
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
-
-let Purchases = null;
-try {
-  // In Expo Go this module is missing; require lazily so the app still boots.
-  Purchases = require('react-native-purchases').default;
-} catch {
-  Purchases = null;
-}
+import { Linking } from 'react-native';
 
 export const ENTITLEMENT_ID = 'premium';
 
-let initialized = false;
-
-function getApiKey() {
+function getBaseUrl() {
   const extra = Constants?.expoConfig?.extra || Constants?.manifest?.extra || {};
-  if (Platform.OS === 'android') return extra.revenueCatAndroidKey || '';
-  if (Platform.OS === 'ios') return extra.revenueCatIosKey || '';
-  return '';
+  const url = extra.paymentBaseUrl || '';
+  return String(url).replace(/\/$/, '');
 }
 
-export function isPurchasesAvailable() {
-  return !!Purchases && !!getApiKey();
+export function isPaymentConfigured() {
+  return getBaseUrl().length > 0;
 }
 
-export async function initPurchases() {
-  if (!isPurchasesAvailable() || initialized) return false;
-  try {
-    if (Purchases.setLogLevel) {
-      Purchases.setLogLevel('error');
-    }
-    await Purchases.configure({ apiKey: getApiKey() });
-    initialized = true;
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function entitlementActive(info) {
-  return !!info?.entitlements?.active?.[ENTITLEMENT_ID];
-}
-
-export async function getCurrentPremiumStatus() {
-  if (!isPurchasesAvailable()) return null;
-  try {
-    const info = await Purchases.getCustomerInfo();
-    return entitlementActive(info);
-  } catch {
-    return null;
-  }
-}
-
-export async function getCurrentOffering() {
-  if (!isPurchasesAvailable()) return null;
-  try {
-    const offerings = await Purchases.getOfferings();
-    return offerings?.current || null;
-  } catch {
-    return null;
-  }
-}
-
-export async function purchasePackage(pkg) {
-  if (!isPurchasesAvailable()) {
-    const err = new Error('purchases_unavailable');
-    err.code = 'unavailable';
+// Opens the external payment page in the system browser. The site at
+// `${baseUrl}/pay.php` is responsible for redirecting to Robokassa with a
+// signed URL.
+export async function openCheckout(userId, plan = 'monthly') {
+  const base = getBaseUrl();
+  if (!base) {
+    const err = new Error('payment_unconfigured');
+    err.code = 'unconfigured';
     throw err;
   }
-  const result = await Purchases.purchasePackage(pkg);
-  return entitlementActive(result?.customerInfo);
+  if (!userId) {
+    const err = new Error('missing_user_id');
+    err.code = 'no_user_id';
+    throw err;
+  }
+  const url = `${base}/pay.php?userId=${encodeURIComponent(userId)}&plan=${encodeURIComponent(plan)}`;
+  const can = await Linking.canOpenURL(url);
+  if (!can) throw new Error('cannot_open_url');
+  await Linking.openURL(url);
 }
 
-export async function restorePurchases() {
-  if (!isPurchasesAvailable()) return false;
+// Polls the backend to learn whether the given userId has an active
+// subscription. The endpoint must return `{ premium: bool, expiresAt?: string }`.
+export async function checkStatus(userId, { signal } = {}) {
+  const base = getBaseUrl();
+  if (!base || !userId) return null;
   try {
-    const info = await Purchases.restorePurchases();
-    return entitlementActive(info);
+    const url = `${base}/status.php?userId=${encodeURIComponent(userId)}`;
+    const response = await fetch(url, { signal });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return {
+      premium: !!data.premium,
+      expiresAt: data.expiresAt || null,
+    };
   } catch {
-    return false;
+    return null;
   }
+}
+
+// Backwards-compatible aliases used elsewhere in the app.
+export const isPurchasesAvailable = isPaymentConfigured;
+
+export async function getCurrentPremiumStatus(userId) {
+  const status = await checkStatus(userId);
+  if (!status) return null;
+  return status.premium;
+}
+
+export async function restorePurchases(userId) {
+  const status = await checkStatus(userId);
+  return !!status?.premium;
 }

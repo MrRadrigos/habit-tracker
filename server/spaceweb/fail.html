@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Оплата не прошла</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0; min-height: 100vh;
+      font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0F0F12; color: #F5F5F7;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px; text-align: center;
+    }
+    .card {
+      max-width: 420px; width: 100%;
+      background: #1C1C24; border: 1px solid #2A2A36;
+      border-radius: 22px; padding: 28px 24px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+    }
+    .icon {
+      width: 72px; height: 72px; border-radius: 22px;
+      background: rgba(255, 107, 107, 0.18);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px; margin: 0 auto 16px;
+    }
+    h1 { font-size: 22px; margin: 0 0 8px; letter-spacing: -0.4px; }
+    p  { margin: 0 0 18px; color: #9A9AA8; }
+    .btn {
+      display: inline-block; padding: 12px 22px; border-radius: 14px;
+      background: #7C5CFF; color: #fff; font-weight: 700; text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">⚠️</div>
+    <h1>Оплата не прошла</h1>
+    <p>Платёж не был завершён. Можно попробовать ещё раз — деньги не списались.</p>
+    <a class="btn" href="habittracker://premium">Вернуться в приложение</a>
+  </div>
+</body>
+</html>

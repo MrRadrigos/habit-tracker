@@ -1,18 +1,31 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useState } from 'react';
-import {
-  getCurrentPremiumStatus,
-  initPurchases,
-  restorePurchases as restorePurchasesService,
-} from '../services/purchases';
+import { checkStatus, isPaymentConfigured } from '../services/purchases';
 
 const NAME_KEY = '@profile:name';
 const PREMIUM_KEY = '@profile:premium';
 const CUSTOM_ICONS_KEY = '@profile:customIcons';
 const CUSTOM_COLORS_KEY = '@profile:customColors';
+const USER_ID_KEY = '@profile:userId';
+const PREMIUM_EXPIRES_KEY = '@profile:premiumExpiresAt';
 
 const MAX_CUSTOM_ICONS = 5;
 const MAX_CUSTOM_COLORS = 5;
+
+function genUserId() {
+  // RFC4122-ish v4 string. Random source is Math.random which is enough for
+  // an opaque per-install identifier (it is not security-sensitive).
+  const hex = '0123456789abcdef';
+  let out = '';
+  for (let i = 0; i < 32; i++) {
+    if (i === 8 || i === 12 || i === 16 || i === 20) out += '-';
+    let n = Math.floor(Math.random() * 16);
+    if (i === 12) n = 4;
+    if (i === 16) n = (n & 0x3) | 0x8;
+    out += hex[n];
+  }
+  return out;
+}
 
 function normalizeHex(input) {
   if (!input) return null;
@@ -31,10 +44,13 @@ function normalizeHex(input) {
 const ProfileContext = createContext({
   name: '',
   premium: false,
+  premiumExpiresAt: null,
+  userId: '',
   customIcons: [],
   customColors: [],
   setName: () => {},
   setPremium: () => {},
+  refreshPremium: async () => false,
   addCustomIcon: () => {},
   removeCustomIcon: () => {},
   addCustomColor: () => {},
@@ -45,24 +61,54 @@ const ProfileContext = createContext({
 export function ProfileProvider({ children }) {
   const [name, setNameState] = useState('');
   const [premium, setPremiumState] = useState(false);
+  const [premiumExpiresAt, setPremiumExpiresAtState] = useState(null);
+  const [userId, setUserIdState] = useState('');
   const [customIcons, setCustomIconsState] = useState([]);
   const [customColors, setCustomColorsState] = useState([]);
 
-  const persistPremium = async (next) => {
-    setPremiumState(next);
+  const persistPremium = async (next, expiresAt = null) => {
+    setPremiumState(!!next);
+    setPremiumExpiresAtState(expiresAt);
     await AsyncStorage.setItem(PREMIUM_KEY, next ? '1' : '0');
+    if (expiresAt) {
+      await AsyncStorage.setItem(PREMIUM_EXPIRES_KEY, expiresAt);
+    } else {
+      await AsyncStorage.removeItem(PREMIUM_EXPIRES_KEY);
+    }
+  };
+
+  const ensureUserId = async () => {
+    let stored = await AsyncStorage.getItem(USER_ID_KEY);
+    if (!stored) {
+      stored = genUserId();
+      await AsyncStorage.setItem(USER_ID_KEY, stored);
+    }
+    setUserIdState(stored);
+    return stored;
+  };
+
+  const refreshPremium = async (id) => {
+    const target = id || userId;
+    if (!target || !isPaymentConfigured()) return null;
+    const status = await checkStatus(target);
+    if (!status) return null;
+    await persistPremium(status.premium, status.expiresAt);
+    return status.premium;
   };
 
   useEffect(() => {
     (async () => {
-      const [storedName, storedPremium, storedIcons, storedColors] = await Promise.all([
-        AsyncStorage.getItem(NAME_KEY),
-        AsyncStorage.getItem(PREMIUM_KEY),
-        AsyncStorage.getItem(CUSTOM_ICONS_KEY),
-        AsyncStorage.getItem(CUSTOM_COLORS_KEY),
-      ]);
+      const [storedName, storedPremium, storedExpires, storedIcons, storedColors] =
+        await Promise.all([
+          AsyncStorage.getItem(NAME_KEY),
+          AsyncStorage.getItem(PREMIUM_KEY),
+          AsyncStorage.getItem(PREMIUM_EXPIRES_KEY),
+          AsyncStorage.getItem(CUSTOM_ICONS_KEY),
+          AsyncStorage.getItem(CUSTOM_COLORS_KEY),
+        ]);
       if (storedName) setNameState(storedName);
       if (storedPremium === '1') setPremiumState(true);
+      if (storedExpires) setPremiumExpiresAtState(storedExpires);
       if (storedIcons) {
         try {
           const arr = JSON.parse(storedIcons);
@@ -76,13 +122,12 @@ export function ProfileProvider({ children }) {
         } catch {}
       }
 
-      // RevenueCat is the source of truth when configured.
-      const ok = await initPurchases();
-      if (ok) {
-        const status = await getCurrentPremiumStatus();
-        if (status !== null) {
-          setPremiumState(status);
-          await AsyncStorage.setItem(PREMIUM_KEY, status ? '1' : '0');
+      const id = await ensureUserId();
+
+      if (isPaymentConfigured()) {
+        const status = await checkStatus(id);
+        if (status) {
+          await persistPremium(status.premium, status.expiresAt);
         }
       }
     })();
@@ -94,7 +139,7 @@ export function ProfileProvider({ children }) {
   };
 
   const setPremium = async (next) => {
-    await persistPremium(next);
+    await persistPremium(next, premiumExpiresAt);
   };
 
   const persistIcons = async (next) => {
@@ -136,9 +181,8 @@ export function ProfileProvider({ children }) {
   };
 
   const restorePurchases = async () => {
-    const ok = await restorePurchasesService();
-    await persistPremium(!!ok);
-    return !!ok;
+    const result = await refreshPremium();
+    return !!result;
   };
 
   return (
@@ -146,10 +190,13 @@ export function ProfileProvider({ children }) {
       value={{
         name,
         premium,
+        premiumExpiresAt,
+        userId,
         customIcons,
         customColors,
         setName,
         setPremium,
+        refreshPremium,
         addCustomIcon,
         removeCustomIcon,
         addCustomColor,
