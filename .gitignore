@@ -12,3 +12,8 @@ web-build/
 .DS_Store
 .env
 .env.local
+
+# server secrets / runtime state — never commit these
+server/spaceweb/config.php
+server/spaceweb/store.json
+server/spaceweb/store.json.tmp

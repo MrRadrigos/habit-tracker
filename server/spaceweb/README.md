@@ -14,7 +14,7 @@ The included `.htaccess` blocks direct HTTP access to that file and to
 
 | File | Purpose |
 |---|---|
-| `config.php` | Robokassa credentials, plans, store path. **Edit before deploy.** |
+| `config.example.php` | Шаблон конфига. На сервере **переименовать** в `config.php` и заполнить. `config.php` гитом не отслеживается. |
 | `store.php` | JSON-on-disk helpers (atomic writes via temp + rename). |
 | `pay.php` | Builds the Robokassa redirect URL with the right signature. |
 | `result.php` | Verifies Robokassa's webhook signature and marks the user paid. |
@@ -39,11 +39,14 @@ The included `.htaccess` blocks direct HTTP access to that file and to
 
 ### 2. SpaceWeb
 1. Залей всю папку `server/spaceweb/` через ftp / файловый менеджер на свой домен. Корневая папка может быть любой — например, `public_html/pay/`.
-2. Открой `config.php` и заполни:
+2. Переименуй на сервере `config.example.php` → `config.php` и впиши:
    - `ROBOKASSA_LOGIN`, `ROBOKASSA_PASS1`, `ROBOKASSA_PASS2` — из кабинета.
    - `SUCCESS_URL`, `FAIL_URL` — на твой реальный домен.
    - `ROBOKASSA_TEST_MODE` — оставь `true` пока тестируешь.
    - `$PLANS` — измени цену под себя.
+
+   **Не коммить `config.php` обратно в git** — пароли утекут. Файл уже
+   в `.gitignore`, но не отключай эту защиту.
 3. Создай пустой `store.json` с правами `666` (или дай папке право записи). Файл создаст и сам скрипт при первом платеже, но иногда shared hosting запрещает PHP создавать файлы — лучше подложить вручную:
    ```
    {"users":{},"invoices":{}}

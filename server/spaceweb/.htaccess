@@ -1,5 +1,5 @@
 # Block direct HTTP access to the JSON store and config files.
-<FilesMatch "(store\.json|store\.json\.tmp|config\.php|store\.php)$">
+<FilesMatch "(store\.json|store\.json\.tmp|config\.php|config\.example\.php|store\.php)$">
     Order allow,deny
     Deny from all
 </FilesMatch>

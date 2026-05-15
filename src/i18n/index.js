@@ -3,7 +3,7 @@ import { useEffect, useState, createContext, useContext } from 'react';
 
 const translations = {
   ru: {
-    appName: 'Дневник привычек',
+    appName: 'HabitTracker Pro',
     tabs: {
       home: 'Сегодня',
       stats: 'Статистика',
@@ -114,7 +114,7 @@ const translations = {
     },
   },
   en: {
-    appName: 'Habit Diary',
+    appName: 'HabitTracker Pro',
     tabs: {
       home: 'Today',
       stats: 'Stats',
