@@ -36,7 +36,7 @@
     "scheme": "habittracker",
     "extra": {
       "insightsUrl": "",
-      "paymentBaseUrl": ""
+      "paymentBaseUrl": "http://amigos29ya.temp.swtest.ru/pay"
     }
   }
 }
