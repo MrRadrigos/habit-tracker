@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 $userId = isset($_GET['userId']) ? trim($_GET['userId']) : '';
-if (!preg_match('/^[a-f0-9-]{8,64}$/', $userId)) {
+if (!preg_match('/^[a-zA-Z0-9_-]{4,64}$/', $userId)) {
     http_response_code(400);
     echo json_encode(['error' => 'userId required']);
     exit;

@@ -14,7 +14,7 @@ function bad_request($msg) {
 $userId = isset($_GET['userId']) ? trim($_GET['userId']) : '';
 $plan = isset($_GET['plan']) ? trim($_GET['plan']) : 'monthly';
 
-if (!preg_match('/^[a-f0-9-]{8,64}$/', $userId)) {
+if (!preg_match('/^[a-zA-Z0-9_-]{4,64}$/', $userId)) {
     bad_request('userId required');
 }
 if (!isset($PLANS[$plan])) {
