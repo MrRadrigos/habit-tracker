@@ -1,10 +1,21 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View, Platform } from 'react-native';
+import {
+  Animated,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import * as Haptics from 'expo-haptics';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { ScrollView } from 'react-native-gesture-handler';
 import { useTheme } from '../theme';
 import { useI18n } from '../i18n';
 import { dayOfWeekIndex, isScheduledToday, lastNDates, todayKey } from '../storage/habits';
+
+const WEEK_STRIP_DAYS = 84; // 12 недель назад
+const WEEK_CELL_WIDTH = 34;
 
 function hexWithAlpha(hex, alpha) {
   const a = Math.round(alpha * 255)
@@ -62,11 +73,19 @@ function Checkbox({ checked, color, onPress }) {
 function WeekStrip({ habit, doneSet, color }) {
   const { theme } = useTheme();
   const { t } = useI18n();
-  const days = lastNDates(7);
-  const todayIdx = dayOfWeekIndex();
+  const scrollRef = useRef(null);
+  const days = lastNDates(WEEK_STRIP_DAYS);
 
   return (
-    <View style={styles.weekStrip}>
+    <ScrollView
+      ref={scrollRef}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.weekStrip}
+      onContentSizeChange={(w) => {
+        scrollRef.current?.scrollTo({ x: w, animated: false });
+      }}
+    >
       {days.map((d, i) => {
         const key = todayKey(d);
         const scheduled = isScheduledToday(habit, d);
@@ -105,7 +124,7 @@ function WeekStrip({ habit, doneSet, color }) {
           </View>
         );
       })}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -328,12 +347,12 @@ const styles = StyleSheet.create({
   },
   weekStrip: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 14,
+    paddingTop: 14,
+    paddingBottom: 4,
   },
   weekCell: {
     alignItems: 'center',
-    flex: 1,
+    width: WEEK_CELL_WIDTH,
   },
   weekLabel: {
     fontSize: 10,

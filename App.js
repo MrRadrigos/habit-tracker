@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/theme';
 import { I18nProvider } from './src/i18n';
 import { ProfileProvider } from './src/storage/profile';
+import { HabitsProvider } from './src/storage/habits-store';
 import RootNavigator from './src/navigation/RootNavigator';
 
 function ThemedStatusBar() {
@@ -18,8 +19,10 @@ export default function App() {
         <ThemeProvider>
           <I18nProvider>
             <ProfileProvider>
-              <ThemedStatusBar />
-              <RootNavigator />
+              <HabitsProvider>
+                <ThemedStatusBar />
+                <RootNavigator />
+              </HabitsProvider>
             </ProfileProvider>
           </I18nProvider>
         </ThemeProvider>

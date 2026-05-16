@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -9,17 +9,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { useI18n } from '../i18n';
 import { useProfile } from '../storage/profile';
+import { useHabits } from '../storage/habits-store';
 import {
   calculateStreak,
-  deleteHabit,
-  getCompletions,
-  getHabits,
   isScheduledToday,
-  toggleCompletion,
   todayKey,
   weekCompletionRate,
 } from '../storage/habits';
@@ -50,23 +46,16 @@ export default function HomeScreen({ navigation }) {
   const { theme } = useTheme();
   const { t, lang } = useI18n();
   const { name: userName } = useProfile();
-  const [habits, setHabits] = useState([]);
-  const [completions, setCompletions] = useState({});
+  const {
+    habits,
+    completions,
+    refresh,
+    deleteHabit,
+    toggleCompletion,
+  } = useHabits();
   const [insight, setInsight] = useState('');
   const [insightLoading, setInsightLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  const load = useCallback(async () => {
-    const [h, c] = await Promise.all([getHabits(), getCompletions()]);
-    setHabits(h);
-    setCompletions(c);
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
 
   useEffect(() => {
     syncNotifications(habits).catch(() => {});
@@ -114,9 +103,8 @@ export default function HomeScreen({ navigation }) {
     };
   }, [habits, todayHabits, completions]);
 
-  const handleToggle = async (habitId) => {
-    const updated = await toggleCompletion(habitId);
-    setCompletions(updated);
+  const handleToggle = (habitId) => {
+    toggleCompletion(habitId).catch(() => {});
   };
 
   const handleEdit = (habit) => {
@@ -130,8 +118,7 @@ export default function HomeScreen({ navigation }) {
         text: t.add.delete,
         style: 'destructive',
         onPress: async () => {
-          const next = await deleteHabit(habit.id);
-          setHabits(next);
+          await deleteHabit(habit.id);
         },
       },
     ]);
@@ -147,7 +134,7 @@ export default function HomeScreen({ navigation }) {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await load();
+    await refresh();
     setRefreshing(false);
   };
 

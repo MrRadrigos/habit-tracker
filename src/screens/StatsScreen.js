@@ -1,13 +1,12 @@
-import { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { useI18n } from '../i18n';
+import { useHabits } from '../storage/habits-store';
 import {
   calculateStreak,
-  getCompletions,
-  getHabits,
   isScheduledToday,
   lastNDates,
   todayKey,
@@ -73,20 +72,8 @@ function calculateTotalStreak(habits, completions) {
 export default function StatsScreen() {
   const { theme } = useTheme();
   const { t } = useI18n();
-  const [habits, setHabits] = useState([]);
-  const [completions, setCompletions] = useState({});
-
-  const load = useCallback(async () => {
-    const [h, c] = await Promise.all([getHabits(), getCompletions()]);
-    setHabits(h);
-    setCompletions(c);
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  const navigation = useNavigation();
+  const { habits, completions, deleteHabit } = useHabits();
 
   const ranked = useMemo(() => {
     return habits
@@ -104,6 +91,29 @@ export default function StatsScreen() {
     () => calculateTotalStreak(habits, completions),
     [habits, completions]
   );
+
+  const openActions = (habit) => {
+    Alert.alert(habit.name, t.add.actionsTitle, [
+      { text: t.add.cancel, style: 'cancel' },
+      {
+        text: t.add.edit,
+        onPress: () => navigation.navigate('AddHabit', { habit }),
+      },
+      {
+        text: t.add.delete,
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert(t.add.confirmDeleteTitle, t.add.confirmDeleteText, [
+            { text: t.add.cancel, style: 'cancel' },
+            {
+              text: t.add.delete,
+              style: 'destructive',
+              onPress: () => deleteHabit(habit.id),
+            },
+          ]),
+      },
+    ]);
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg }]} edges={['top']}>
@@ -138,7 +148,7 @@ export default function StatsScreen() {
           <>
             <Text style={[styles.section, { color: theme.textMuted }]}>{t.stats.best}</Text>
             {best.map((b) => (
-              <RankRow key={b.habit.id} entry={b} theme={theme} />
+              <RankRow key={b.habit.id} entry={b} theme={theme} onPress={() => openActions(b.habit)} />
             ))}
           </>
         ) : null}
@@ -149,8 +159,25 @@ export default function StatsScreen() {
             {worst
               .filter((w) => w.rate < 100)
               .map((b) => (
-                <RankRow key={b.habit.id} entry={b} theme={theme} />
+                <RankRow key={b.habit.id} entry={b} theme={theme} onPress={() => openActions(b.habit)} />
               ))}
+          </>
+        ) : null}
+
+        {habits.length > 0 ? (
+          <>
+            <Text style={[styles.section, { color: theme.textMuted }]}>{t.stats.allHabits}</Text>
+            <Text style={[styles.hint, { color: theme.textDim }]}>{t.stats.allHabitsHint}</Text>
+            {habits.map((h) => (
+              <AllRow
+                key={h.id}
+                habit={h}
+                theme={theme}
+                t={t}
+                streak={calculateStreak(h, completions[h.id] || [])}
+                onPress={() => openActions(h)}
+              />
+            ))}
           </>
         ) : null}
       </ScrollView>
@@ -158,13 +185,19 @@ export default function StatsScreen() {
   );
 }
 
-function RankRow({ entry, theme }) {
+function RankRow({ entry, theme, onPress }) {
   const { habit, rate, streak } = entry;
   return (
-    <View
-      style={[
+    <Pressable
+      onPress={onPress}
+      onLongPress={onPress}
+      style={({ pressed }) => [
         styles.rankRow,
-        { backgroundColor: theme.card, borderColor: theme.border },
+        {
+          backgroundColor: theme.card,
+          borderColor: theme.border,
+          opacity: pressed ? 0.85 : 1,
+        },
       ]}
     >
       <View style={[styles.rankIcon, { backgroundColor: habit.color + '2E' }]}>
@@ -174,12 +207,46 @@ function RankRow({ entry, theme }) {
         <Text style={[styles.rankName, { color: theme.text }]} numberOfLines={1}>
           {habit.name}
         </Text>
-        <Text style={[styles.rankSub, { color: theme.textDim }]}>
-          🔥 {streak}
-        </Text>
+        <Text style={[styles.rankSub, { color: theme.textDim }]}>🔥 {streak}</Text>
       </View>
       <Text style={[styles.rankRate, { color: habit.color }]}>{rate}%</Text>
-    </View>
+    </Pressable>
+  );
+}
+
+function AllRow({ habit, theme, t, streak, onPress }) {
+  const scheduledToday = isScheduledToday(habit);
+  const freqLabel =
+    habit.frequency?.type === 'weekly'
+      ? (habit.frequency.days || []).map((i) => t.days.short[i]).join(' ')
+      : t.add.everyDay;
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onPress}
+      style={({ pressed }) => [
+        styles.rankRow,
+        {
+          backgroundColor: theme.card,
+          borderColor: theme.border,
+          opacity: pressed ? 0.85 : 1,
+        },
+      ]}
+    >
+      <View style={[styles.rankIcon, { backgroundColor: habit.color + '2E' }]}>
+        <Text style={{ fontSize: 18 }}>{habit.icon}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.rankName, { color: theme.text }]} numberOfLines={1}>
+          {habit.name}
+        </Text>
+        <Text style={[styles.rankSub, { color: theme.textDim }]} numberOfLines={1}>
+          🔥 {streak} · {freqLabel}
+          {scheduledToday ? '' : ` · ${t.stats.notToday}`}
+        </Text>
+      </View>
+      <Text style={[styles.chev, { color: theme.textDim }]}>›</Text>
+    </Pressable>
   );
 }
 
@@ -229,6 +296,11 @@ const styles = StyleSheet.create({
     marginTop: 22,
     marginBottom: 10,
   },
+  hint: {
+    fontSize: 12,
+    marginBottom: 10,
+    marginTop: -4,
+  },
   rankRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -248,4 +320,5 @@ const styles = StyleSheet.create({
   rankName: { fontSize: 15, fontWeight: '600' },
   rankSub: { fontSize: 12, marginTop: 2 },
   rankRate: { fontSize: 15, fontWeight: '700', marginLeft: 8 },
+  chev: { fontSize: 22, fontWeight: '300', marginLeft: 8 },
 });

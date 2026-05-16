@@ -69,6 +69,9 @@ const translations = {
       best: 'Лучшие привычки',
       worst: 'Требуют внимания',
       totalStreak: 'Общий стрик',
+      allHabits: 'Все привычки',
+      allHabitsHint: 'Тапни по привычке, чтобы изменить или удалить',
+      notToday: 'не на сегодня',
     },
     settings: {
       title: 'Настройки',
@@ -180,6 +183,9 @@ const translations = {
       best: 'Best habits',
       worst: 'Need attention',
       totalStreak: 'Total streak',
+      allHabits: 'All habits',
+      allHabitsHint: 'Tap a habit to edit or delete',
+      notToday: 'not today',
     },
     settings: {
       title: 'Settings',

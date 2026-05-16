@@ -15,7 +15,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { habitColors, habitIcons, useTheme } from '../theme';
 import { useI18n } from '../i18n';
 import { MAX_COLORS, MAX_CUSTOM, normalizeHex, useProfile } from '../storage/profile';
-import { addHabit, deleteHabit, getHabits, updateHabit } from '../storage/habits';
+import { useHabits } from '../storage/habits-store';
 import { syncNotifications } from '../services/notifications';
 
 const FREE_LIMIT = 3;
@@ -43,6 +43,7 @@ export default function AddHabitScreen({ navigation, route }) {
     addCustomColor,
     removeCustomColor,
   } = useProfile();
+  const { habits, addHabit, updateHabit, deleteHabit } = useHabits();
 
   const editing = route?.params?.habit;
   const isEdit = !!editing;
@@ -163,8 +164,7 @@ export default function AddHabitScreen({ navigation, route }) {
     if (isEdit) {
       next = await updateHabit(editing.id, patch);
     } else {
-      const existing = await getHabits();
-      if (!premium && existing.length >= FREE_LIMIT) {
+      if (!premium && habits.length >= FREE_LIMIT) {
         setSaving(false);
         navigation.replace('Premium');
         return;
