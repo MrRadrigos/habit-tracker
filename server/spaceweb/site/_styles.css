@@ -148,6 +148,114 @@ article .meta {
   margin-bottom: 24px;
 }
 
+/* ── How-to: numbered steps ──────────────────────────────────────────── */
+.steps {
+  list-style: none;
+  counter-reset: step;
+  padding: 0;
+  margin: 0;
+}
+.steps li {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.steps li:first-child { border-top: none; padding-top: 4px; }
+.steps li::before {
+  counter-increment: step;
+  content: counter(step);
+  flex: 0 0 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(124, 92, 255, 0.18);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.steps li > span { padding-top: 5px; }
+
+/* ── Check list with ✓ bullets ───────────────────────────────────────── */
+.check-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.check-list li {
+  position: relative;
+  padding: 10px 0 10px 30px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.check-list li:first-child { border-top: none; }
+.check-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  top: 11px;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: rgba(61, 220, 151, 0.16);
+  color: var(--success);
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Refund split (before / after) ───────────────────────────────────── */
+.refund-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 6px;
+}
+.refund-side {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.refund-side h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 15px;
+  letter-spacing: -0.2px;
+}
+.refund-side h3 .tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(124, 92, 255, 0.18);
+  color: var(--accent);
+}
+.refund-side ol,
+.refund-side ul {
+  padding-left: 18px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.refund-side li { margin-bottom: 6px; }
+.refund-side p { font-size: 14px; margin: 0; color: var(--text-muted); }
+.refund-foot {
+  margin: 14px 0 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
 .footer {
   margin-top: 48px;
   padding-top: 22px;
@@ -163,4 +271,5 @@ article .meta {
 @media (max-width: 520px) {
   .hero h1 { font-size: 28px; }
   .nav .links { gap: 12px; font-size: 13px; }
+  .refund-split { grid-template-columns: 1fr; }
 }
