@@ -33,16 +33,40 @@ $description = 'Habit Tracker Premium';
 // so the webhook can attach the payment to the right user.
 $shpUserId = $userId;
 
-// Signature for outgoing payment URL: md5(login:amount:invId:pass1:Shp_userId=<id>)
+// Fiscalization (ФЗ-54). Robokassa requires the cart contents (номенклатура).
+// payment_object "service" — это услуга; tax "none" — самозанятый (НПД) не
+// является плательщиком НДС, поэтому ставка не указывается.
+$receipt = [
+    'items' => [
+        [
+            'name'           => 'Подписка Premium HabitTracker Pro (30 дней)',
+            'quantity'       => 1,
+            'sum'            => (float) $amount,
+            'payment_method' => 'full_payment',
+            'payment_object' => 'service',
+            'tax'            => 'none',
+        ],
+    ],
+];
+$receiptJson = json_encode($receipt, JSON_UNESCAPED_UNICODE);
+// Robokassa требует Receipt в URL-кодировке как в подписи, так и в URL.
+$receiptEncoded = urlencode($receiptJson);
+
+// Signature for outgoing payment URL, with Receipt:
+//   md5(login:OutSum:InvId:Receipt:Pass1:Shp_userId=<id>)
 // Shp_ parameters MUST be appended sorted by name.
-$signatureSrc = ROBOKASSA_LOGIN . ':' . $amount . ':' . $invId . ':' . ROBOKASSA_PASS1
-              . ':Shp_userId=' . $shpUserId;
+$signatureSrc = ROBOKASSA_LOGIN . ':' . $amount . ':' . $invId . ':' . $receiptEncoded
+              . ':' . rk_pass1() . ':Shp_userId=' . $shpUserId;
 $signature = md5($signatureSrc);
 
+// http_build_query применяет urlencode() к каждому значению, поэтому в
+// $params['Receipt'] кладём СЫРОЙ json — он закодируется ровно один раз и
+// совпадёт с $receiptEncoded, использованным в подписи.
 $params = [
     'MerchantLogin'  => ROBOKASSA_LOGIN,
     'OutSum'         => $amount,
     'InvId'          => $invId,
+    'Receipt'        => $receiptJson,
     'Description'    => $description,
     'SignatureValue' => $signature,
     'Shp_userId'     => $shpUserId,

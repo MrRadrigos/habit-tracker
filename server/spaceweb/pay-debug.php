@@ -21,6 +21,9 @@ echo "plan:   $plan\n\n";
 echo "=== CONFIG ===\n";
 echo "ROBOKASSA_LOGIN:       " . ROBOKASSA_LOGIN . "\n";
 echo "ROBOKASSA_TEST_MODE:   " . (ROBOKASSA_TEST_MODE ? 'true' : 'false') . "\n";
+echo "Active password set:   " . (ROBOKASSA_TEST_MODE ? 'TEST' : 'PRODUCTION') . "\n";
+echo "TEST_PASS1 defined:    " . (defined('ROBOKASSA_TEST_PASS1') && ROBOKASSA_TEST_PASS1 !== '' ? 'yes' : 'NO') . "\n";
+echo "TEST_PASS2 defined:    " . (defined('ROBOKASSA_TEST_PASS2') && ROBOKASSA_TEST_PASS2 !== '' ? 'yes' : 'NO') . "\n";
 echo "SUCCESS_URL:           " . SUCCESS_URL . "\n";
 echo "FAIL_URL:              " . FAIL_URL . "\n";
 echo "PLANS:                 " . json_encode($PLANS, JSON_UNESCAPED_UNICODE) . "\n";
@@ -39,14 +42,30 @@ if (!isset($PLANS[$plan])) {
 $amount = $PLANS[$plan];
 $invId  = (string)(time() % 1000000) . str_pad((string)random_int(0, 999), 3, '0', STR_PAD_LEFT);
 
-$signatureSrc = ROBOKASSA_LOGIN . ':' . $amount . ':' . $invId . ':' . ROBOKASSA_PASS1
-              . ':Shp_userId=' . $userId;
+$receipt = [
+    'items' => [
+        [
+            'name'           => 'Подписка Premium HabitTracker Pro (30 дней)',
+            'quantity'       => 1,
+            'sum'            => (float) $amount,
+            'payment_method' => 'full_payment',
+            'payment_object' => 'service',
+            'tax'            => 'none',
+        ],
+    ],
+];
+$receiptJson = json_encode($receipt, JSON_UNESCAPED_UNICODE);
+$receiptEncoded = urlencode($receiptJson);
+
+$signatureSrc = ROBOKASSA_LOGIN . ':' . $amount . ':' . $invId . ':' . $receiptEncoded
+              . ':' . rk_pass1() . ':Shp_userId=' . $userId;
 $signature = md5($signatureSrc);
 
 $params = [
     'MerchantLogin'  => ROBOKASSA_LOGIN,
     'OutSum'         => $amount,
     'InvId'          => $invId,
+    'Receipt'        => $receiptJson,
     'Description'    => 'Habit Tracker Premium',
     'SignatureValue' => $signature,
     'Shp_userId'     => $userId,
@@ -58,6 +77,9 @@ if (ROBOKASSA_TEST_MODE) {
 }
 
 $url = 'https://auth.robokassa.ru/Merchant/Index.aspx?' . http_build_query($params);
+
+echo "=== RECEIPT (fiscalization) ===\n";
+echo $receiptJson . "\n\n";
 
 echo "=== RESULT ===\n";
 echo "amount:    $amount\n";
