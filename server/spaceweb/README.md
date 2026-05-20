@@ -78,3 +78,18 @@ The included `.htaccess` blocks direct HTTP access to that file and to
 1. В кабинете Робокассы переведи магазин в "боевой" режим (после прохождения модерации).
 2. В `config.php` поставь `ROBOKASSA_TEST_MODE = false`.
 3. Залей правки на хостинг.
+
+## Фискализация (ФЗ-54)
+
+`pay.php` передаёт в Robokassa параметр `Receipt` — состав корзины (одна
+позиция: подписка Premium на 30 дней). Это требование Robokassa для
+формирования чека по ФЗ-54.
+
+Параметры позиции:
+- `payment_object: service` — услуга.
+- `payment_method: full_payment` — полный расчёт.
+- `tax: none` — самозанятый (НПД) не платит НДС, ставка не указывается.
+
+Если меняешь цену или название подписки — правь и `$PLANS` в `config.php`,
+и блок `$receipt` в `pay.php` (имя позиции). Сумма позиции `sum` должна
+совпадать с `OutSum`.
