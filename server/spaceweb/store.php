@@ -4,6 +4,22 @@
 
 require_once __DIR__ . '/config.php';
 
+// Robokassa uses a separate pair of passwords in test mode. These helpers
+// pick the right pair so the rest of the code never has to think about it.
+function rk_pass1() {
+    if (ROBOKASSA_TEST_MODE && defined('ROBOKASSA_TEST_PASS1') && ROBOKASSA_TEST_PASS1 !== '') {
+        return ROBOKASSA_TEST_PASS1;
+    }
+    return ROBOKASSA_PASS1;
+}
+
+function rk_pass2() {
+    if (ROBOKASSA_TEST_MODE && defined('ROBOKASSA_TEST_PASS2') && ROBOKASSA_TEST_PASS2 !== '') {
+        return ROBOKASSA_TEST_PASS2;
+    }
+    return ROBOKASSA_PASS2;
+}
+
 function store_load() {
     $path = STORE_FILE;
     if (!file_exists($path)) {

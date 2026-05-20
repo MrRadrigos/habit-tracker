@@ -56,7 +56,7 @@ $receiptEncoded = urlencode($receiptJson);
 //   md5(login:OutSum:InvId:Receipt:Pass1:Shp_userId=<id>)
 // Shp_ parameters MUST be appended sorted by name.
 $signatureSrc = ROBOKASSA_LOGIN . ':' . $amount . ':' . $invId . ':' . $receiptEncoded
-              . ':' . ROBOKASSA_PASS1 . ':Shp_userId=' . $shpUserId;
+              . ':' . rk_pass1() . ':Shp_userId=' . $shpUserId;
 $signature = md5($signatureSrc);
 
 // http_build_query применяет urlencode() к каждому значению, поэтому в

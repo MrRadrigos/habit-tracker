@@ -21,6 +21,9 @@ echo "plan:   $plan\n\n";
 echo "=== CONFIG ===\n";
 echo "ROBOKASSA_LOGIN:       " . ROBOKASSA_LOGIN . "\n";
 echo "ROBOKASSA_TEST_MODE:   " . (ROBOKASSA_TEST_MODE ? 'true' : 'false') . "\n";
+echo "Active password set:   " . (ROBOKASSA_TEST_MODE ? 'TEST' : 'PRODUCTION') . "\n";
+echo "TEST_PASS1 defined:    " . (defined('ROBOKASSA_TEST_PASS1') && ROBOKASSA_TEST_PASS1 !== '' ? 'yes' : 'NO') . "\n";
+echo "TEST_PASS2 defined:    " . (defined('ROBOKASSA_TEST_PASS2') && ROBOKASSA_TEST_PASS2 !== '' ? 'yes' : 'NO') . "\n";
 echo "SUCCESS_URL:           " . SUCCESS_URL . "\n";
 echo "FAIL_URL:              " . FAIL_URL . "\n";
 echo "PLANS:                 " . json_encode($PLANS, JSON_UNESCAPED_UNICODE) . "\n";
@@ -55,7 +58,7 @@ $receiptJson = json_encode($receipt, JSON_UNESCAPED_UNICODE);
 $receiptEncoded = urlencode($receiptJson);
 
 $signatureSrc = ROBOKASSA_LOGIN . ':' . $amount . ':' . $invId . ':' . $receiptEncoded
-              . ':' . ROBOKASSA_PASS1 . ':Shp_userId=' . $userId;
+              . ':' . rk_pass1() . ':Shp_userId=' . $userId;
 $signature = md5($signatureSrc);
 
 $params = [

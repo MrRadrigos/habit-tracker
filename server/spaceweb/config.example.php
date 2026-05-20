@@ -5,13 +5,21 @@
 
 // ── Robokassa ─────────────────────────────────────────────────────────────
 // MerchantLogin — «Идентификатор магазина» из кабинета Робокассы.
-// Pass1 — «Пароль #1» (используется для подписи исходящих платёжных URL).
-// Pass2 — «Пароль #2» (используется для проверки входящего webhook).
+//
+// БОЕВЫЕ пароли — раздел «Технические настройки».
 define('ROBOKASSA_LOGIN', 'your_merchant_login');
-define('ROBOKASSA_PASS1', 'your_password_1');
-define('ROBOKASSA_PASS2', 'your_password_2');
+define('ROBOKASSA_PASS1', 'your_production_password_1');
+define('ROBOKASSA_PASS2', 'your_production_password_2');
 
-// Тестовый режим Робокассы. После прохождения модерации поменяй на false.
+// ТЕСТОВЫЕ пароли — блок «Параметры проведения тестовых платежей»
+// в тех же «Технических настройках». Это ОТДЕЛЬНАЯ пара, не совпадает
+// с боевой. Когда ROBOKASSA_TEST_MODE = true, скрипт подписывает запросы
+// именно этими паролями.
+define('ROBOKASSA_TEST_PASS1', 'your_test_password_1');
+define('ROBOKASSA_TEST_PASS2', 'your_test_password_2');
+
+// Тестовый режим Робокассы. После прохождения модерации поменяй на false —
+// тогда автоматически используются боевые пароли выше.
 define('ROBOKASSA_TEST_MODE', true);
 
 // Куда Робокасса возвращает пользователя после оплаты / отмены.

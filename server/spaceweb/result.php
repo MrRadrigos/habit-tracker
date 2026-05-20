@@ -20,7 +20,8 @@ if ($outSum === '' || $invId === '' || $sig === '' || $shpUserId === '') {
 }
 
 // Verification signature: md5(OutSum:InvId:Pass2:Shp_userId=<id>)
-$expectedSrc = $outSum . ':' . $invId . ':' . ROBOKASSA_PASS2 . ':Shp_userId=' . $shpUserId;
+// rk_pass2() picks the test password when ROBOKASSA_TEST_MODE is on.
+$expectedSrc = $outSum . ':' . $invId . ':' . rk_pass2() . ':Shp_userId=' . $shpUserId;
 $expected = md5($expectedSrc);
 
 if (!hash_equals($expected, $sig)) {
